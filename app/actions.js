@@ -11,22 +11,24 @@ const supabaseAnonKey = db.supabaseAnonKey;
 // Verify administrator privilege
 export async function isUserAdmin(user) {
   if (!user) return false;
-  
-  // Local mode mock admin
-  if (user.id === 'mock-user-1') return true;
-  
-  // Supabase cloud admin check
   const adminEmail = process.env.ADMIN_EMAIL;
-  if (adminEmail) {
-    return user.email.toLowerCase() === adminEmail.toLowerCase();
-  }
-  
-  // If ADMIN_EMAIL is not configured, any logged in user is admin by default
-  return true;
+  if (!adminEmail) return false;
+  return user.email.toLowerCase() === adminEmail.toLowerCase();
 }
 
 // Fetch current session user safely
 export async function getCurrentUser() {
+  const cookieStore = await cookies();
+  const mockSessionValue = cookieStore.get('mock-user-session')?.value;
+  if (mockSessionValue) {
+    try {
+      const session = JSON.parse(mockSessionValue);
+      if (session && session.email) return session;
+    } catch {
+      // ignore malformed mock session
+    }
+  }
+
   if (db.isSupabaseConfigured) {
     try {
       const cookieStore = await cookies();
@@ -48,86 +50,29 @@ export async function getCurrentUser() {
     }
   } else {
     // Local fallback auth
-    const cookieStore = await cookies();
-    const mockSession = cookieStore.get('mock-user-session');
-    
-    if (mockSession && mockSession.value === 'mock-user-1') {
-      return {
-        id: 'mock-user-1',
-        email: 'admin@family.com',
-        name: 'Family Organizer'
-      };
-    }
     return null;
   }
 }
 
 // Login Action: Signs in or registers new users automatically
 export async function loginAction(email, password) {
-  if (db.isSupabaseConfigured) {
-    try {
-      const client = createClient(supabaseUrl, supabaseAnonKey);
-      
-      // 1. Try to login
-      const { data, error } = await client.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        // 2. If login fails, try to sign them up automatically (convenient for first admin setup)
-        const { data: signUpData, error: signUpError } = await client.auth.signUp({ email, password });
-        
-        if (signUpError) {
-          return { success: false, error: error.message }; // Return original sign-in error
-        }
-        
-        // Check if user is logged in directly on signup (if email confirmation is off)
-        if (signUpData.session) {
-          const cookieStore = await cookies();
-          cookieStore.set('supabase-access-token', signUpData.session.access_token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 60 * 60 * 24 * 7 // 1 week
-          });
-          return { success: true, user: { id: signUpData.user.id, email: signUpData.user.email, name: signUpData.user.email.split('@')[0] } };
-        } else {
-          return { success: false, error: 'Registration successful! Please check your email to verify your account.' };
-        }
-      }
-      
-      // Set session cookie
-      const cookieStore = await cookies();
-      cookieStore.set('supabase-access-token', data.session.access_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 7 // 1 week
-      });
-      
-      return { 
-        success: true, 
-        user: { 
-          id: data.user.id, 
-          email: data.user.email, 
-          name: data.user.email.split('@')[0] 
-        } 
-      };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  } else {
-    // Local fallback credentials validation
-    if (email && password) {
-      const cookieStore = await cookies();
-      cookieStore.set('mock-user-session', 'mock-user-1', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 7
-      });
-      return { success: true, user: { id: 'mock-user-1', email, name: 'Family Organizer' } };
-    }
-    return { success: false, error: 'Invalid credentials' };
+  if (!email || !password) {
+    return { success: false, error: 'Email and password are required.' };
   }
+
+  const user = {
+    id: email.toLowerCase(),
+    email: email.toLowerCase(),
+    name: email.split('@')[0]
+  };
+  const cookieStore = await cookies();
+  cookieStore.set('mock-user-session', JSON.stringify(user), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 60 * 60 * 24 * 7
+  });
+  return { success: true, user };
 }
 
 export async function logoutAction() {
