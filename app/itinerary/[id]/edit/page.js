@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getItineraryAction, getTravelersAction, getEventsAction, getCurrentUser } from '../../../actions';
+import { getItineraryAction, getTravelersAction, getEventsAction, getCurrentUser, isUserAdmin } from '../../../actions';
 import ItineraryEditClient from './ItineraryEditClient';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +11,12 @@ export default async function ItineraryEditPage({ params }) {
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login');
+  }
+
+  // Ensure user has admin privileges
+  const isAdmin = await isUserAdmin(user);
+  if (!isAdmin) {
+    redirect('/');
   }
 
   // Fetch itinerary details in parallel

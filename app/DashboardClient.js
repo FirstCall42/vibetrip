@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createItineraryAction, logoutAction } from './actions';
 
-export default function DashboardClient({ initialItineraries, user }) {
+export default function DashboardClient({ initialItineraries, user, isAdmin }) {
   const [itineraries, setItineraries] = useState(initialItineraries);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -122,7 +122,7 @@ export default function DashboardClient({ initialItineraries, user }) {
             Create public timelines for family trips. Link flights, trains, hotel check-ins, and group dinners so everyone stays in sync.
           </p>
           
-          {user && !showForm && (
+          {isAdmin && !showForm && (
             <button onClick={() => setShowForm(true)} className="btn btn-primary">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -265,7 +265,7 @@ export default function DashboardClient({ initialItineraries, user }) {
                     <Link href={`/itinerary/${itinerary.id}`} className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
                       View Itinerary
                     </Link>
-                    {user && (
+                    {isAdmin && (
                       <Link href={`/itinerary/${itinerary.id}/edit`} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
