@@ -59,20 +59,88 @@ export async function loginAction(email, password) {
   if (!email || !password) {
     return { success: false, error: 'Email and password are required.' };
   }
+  // If Supabase is configured, perform real auth and upsert a profile
+  if (db.isSupabaseConfigured) {
+    try {
+      const client = createClient(supabaseUrl, supabaseAnonKey);
+      // Try sign in
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
 
-  const user = {
-    id: email.toLowerCase(),
-    email: email.toLowerCase(),
-    name: email.split('@')[0]
-  };
-  const cookieStore = await cookies();
-  cookieStore.set('mock-user-session', JSON.stringify(user), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 60 * 60 * 24 * 7
-  });
-  return { success: true, user };
+      // If signin failed, attempt signup
+      if (error) {
+        const { data: signUpData, error: signUpError } = await client.auth.signUp({ email, password });
+        if (signUpError) {
+          return { success: false, error: signUpError.message || error.message };
+        }
+
+        // If signup produced a session, set cookie and upsert profile
+        if (signUpData.session) {
+          const token = signUpData.session.access_token;
+          const userObj = { id: signUpData.user.id, email: signUpData.user.email, name: signUpData.user.email.split('@')[0] };
+          try {
+            await db.upsertProfileSupabase({ id: userObj.id, email: userObj.email, full_name: userObj.name }, token);
+          } catch (e) {
+            // ignore profile upsert failures
+          }
+          const cookieStore = await cookies();
+          cookieStore.set('supabase-access-token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 60 * 60 * 24 * 7
+          });
+          return { success: true, user: userObj };
+        }
+
+        return { success: false, error: 'Registration requires email confirmation.' };
+      }
+
+      // Successful sign in
+      const token = data.session.access_token;
+      const userObj = { id: data.user.id, email: data.user.email, name: data.user.email.split('@')[0] };
+      try {
+        await db.upsertProfileSupabase({ id: userObj.id, email: userObj.email, full_name: userObj.name }, token);
+      } catch (e) {
+        // ignore profile upsert failures
+      }
+      const cookieStore = await cookies();
+      cookieStore.set('supabase-access-token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7
+      });
+      return { success: true, user: userObj };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  // Local/mock flow: create or find a local user profile with UUID
+  try {
+    const existing = await db.getUserByEmail(email);
+    if (existing) {
+      const cookieStore = await cookies();
+      cookieStore.set('mock-user-session', JSON.stringify(existing), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7
+      });
+      return { success: true, user: existing };
+    }
+    const newUser = await db.createUserLocal({ email: email.toLowerCase(), name: email.split('@')[0] });
+    const cookieStore = await cookies();
+    cookieStore.set('mock-user-session', JSON.stringify(newUser), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 7
+    });
+    return { success: true, user: newUser };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
 
 export async function logoutAction() {
