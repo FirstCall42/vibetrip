@@ -158,10 +158,14 @@ export async function getItineraryAction(id) {
 
 export async function createItineraryAction(data) {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  if (!user) {
+    return { success: false, error: "Unauthorized" };
+  }
   
   const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) throw new Error("Only admins can create itineraries.");
+  if (!isAdmin) {
+    return { success: false, error: "Only admins can create itineraries." };
+  }
   
   try {
     const newItinerary = await db.createItinerary({

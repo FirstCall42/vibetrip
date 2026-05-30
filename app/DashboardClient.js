@@ -35,18 +35,27 @@ export default function DashboardClient({ initialItineraries, user, isAdmin }) {
       return;
     }
 
+    if (new Date(formData.end_date) < new Date(formData.start_date)) {
+      setError('End date must be the same or later than the start date.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
-    const result = await createItineraryAction(formData);
-    setLoading(false);
-
-    if (result.success) {
-      setItineraries(prev => [result.itinerary, ...prev]);
-      setShowForm(false);
-      setFormData({ title: '', description: '', start_date: '', end_date: '' });
-    } else {
-      setError(result.error || 'Failed to create itinerary.');
+    try {
+      const result = await createItineraryAction(formData);
+      if (result.success) {
+        setItineraries(prev => [result.itinerary, ...prev]);
+        setShowForm(false);
+        setFormData({ title: '', description: '', start_date: '', end_date: '' });
+      } else {
+        setError(result.error || 'Failed to create itinerary.');
+      }
+    } catch (err) {
+      setError(err?.message || 'Failed to create itinerary.');
+    } finally {
+      setLoading(false);
     }
   };
 
