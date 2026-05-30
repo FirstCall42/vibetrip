@@ -92,6 +92,44 @@ export async function loginAction(email, password) {
           return { success: true, user: userObj };
         }
 
+        // If signup didn't produce a session (email confirmation required), try to auto-confirm using service role key
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (serviceRoleKey) {
+          try {
+            const adminRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: serviceRoleKey,
+                Authorization: `Bearer ${serviceRoleKey}`
+              },
+              body: JSON.stringify({ email, password, email_confirm: true })
+            });
+            const adminData = await adminRes.json();
+            if (adminRes.ok) {
+              // Try signing in now that the user is confirmed
+              const { data: signInData, error: signInError } = await client.auth.signInWithPassword({ email, password });
+              if (!signInError && signInData?.session) {
+                const token = signInData.session.access_token;
+                const userObj = { id: signInData.user.id, email: signInData.user.email, name: signInData.user.email.split('@')[0] };
+                try {
+                  await db.upsertProfileSupabase({ id: userObj.id, email: userObj.email, full_name: userObj.name }, token);
+                } catch (e) {}
+                const cookieStore = await cookies();
+                cookieStore.set('supabase-access-token', token, {
+                  httpOnly: true,
+                  secure: process.env.NODE_ENV === 'production',
+                  sameSite: 'strict',
+                  maxAge: 60 * 60 * 24 * 7
+                });
+                return { success: true, user: userObj };
+              }
+            }
+          } catch (e) {
+            // fall through to returning the confirmation-required error
+          }
+        }
+
         return { success: false, error: 'Registration requires email confirmation.' };
       }
 
