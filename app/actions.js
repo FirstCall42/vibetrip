@@ -5,8 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import * as db from '@/lib/db';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = db.supabaseUrl;
+const supabaseAnonKey = db.supabaseAnonKey;
 
 // Verify administrator privilege
 export async function isUserAdmin(user) {

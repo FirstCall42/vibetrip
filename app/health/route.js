@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { isSupabaseConfigured } from '@/lib/db';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+import { isSupabaseConfigured, supabaseUrlRaw, supabaseUrl, supabaseAnonKey } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const health = {
     supabaseConfigured: isSupabaseConfigured,
+    rawSupabaseUrl: supabaseUrlRaw,
+    normalizedSupabaseUrl: supabaseUrl,
     env: {
-      NEXT_PUBLIC_SUPABASE_URL: Boolean(supabaseUrl),
+      NEXT_PUBLIC_SUPABASE_URL: Boolean(supabaseUrlRaw),
       NEXT_PUBLIC_SUPABASE_ANON_KEY: Boolean(supabaseAnonKey)
     },
     timestamp: new Date().toISOString()
@@ -23,6 +22,10 @@ export async function GET() {
       status: 'local-mode',
       message: 'Supabase is not configured. The app is running in local fallback mode.'
     });
+  }
+
+  if (supabaseUrlRaw && supabaseUrlRaw !== supabaseUrl) {
+    health.warning = 'Supabase URL was normalized. Verify your NEXT_PUBLIC_SUPABASE_URL value is the project origin only.';
   }
 
   try {
