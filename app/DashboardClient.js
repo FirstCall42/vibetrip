@@ -296,6 +296,9 @@ export default function DashboardClient({ initialItineraries, user, isAdmin }) {
           <p style={{ marginBottom: '8px' }}>
             VibeTrip is currently running in **Local File Storage** mode (saving to `/data/db.json`).
           </p>
+          <p style={{ marginBottom: '8px', fontSize: '0.95rem' }}>
+            Supabase health check: <Link href="/health" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>/health</Link>
+          </p>
           <p>
             Deploy this codebase to Vercel and link a Supabase PostgreSQL instance to enable cloud sync.
           </p>
