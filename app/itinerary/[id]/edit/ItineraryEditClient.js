@@ -69,6 +69,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     end_time: '',
     location_name: '',
     address: '',
+    maps_url: '',
     traveler_ids: [],
     details: {
       flight_number: '',
@@ -184,6 +185,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
       end_time: '',
       location_name: '',
       address: '',
+      maps_url: '',
       traveler_ids: [],
       details: {
         flight_number: '',
@@ -259,6 +261,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
       end_time: eventForm.end_date ? combineDateTimeToUTC(eventForm.end_date, eventForm.end_time) : null,
       location_name: eventForm.location_name,
       address: eventForm.address,
+      maps_url: eventForm.maps_url,
       traveler_ids: eventForm.traveler_ids,
       details: eventForm.details
     };
@@ -297,6 +300,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
       end_time: event.end_time ? getUTCTimePart(event.end_time) : '',
       location_name: event.location_name || '',
       address: event.address || '',
+      maps_url: event.maps_url || '',
       traveler_ids: event.traveler_ids || [],
       details: {
         flight_number: event.details?.flight_number || '',
@@ -816,6 +820,21 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                       onChange={handleEventFormChange}
                     />
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Google Maps Link <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(optional)</span></label>
+                  <input 
+                    type="url" 
+                    name="maps_url" 
+                    className="form-input" 
+                    placeholder="e.g. https://www.google.com/maps/place/Hotel+Name/@lat,lng,15z" 
+                    value={eventForm.maps_url}
+                    onChange={handleEventFormChange}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Paste the Google Maps URL directly from your browser for a precise location link.
+                  </p>
                 </div>
 
                 {/* ------------------------------ */}

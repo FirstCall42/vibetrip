@@ -110,7 +110,10 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
     return t ? t.name : 'Unknown';
   };
 
-  const getGoogleMapsLink = (address, locationName) => {
+  const getGoogleMapsLink = (mapsUrl, address, locationName) => {
+    // Use direct maps URL if available, otherwise search by address or location name
+    if (mapsUrl) return mapsUrl;
+    
     const searchQuery = address || locationName;
     if (!searchQuery) return null;
     const encodedQuery = encodeURIComponent(searchQuery);
@@ -284,9 +287,9 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                           📍 <span>{event.location_name}</span>
                           {event.address && <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>({event.address})</span>}
                         </span>
-                        {(event.address || event.location_name) && (
+                        {(event.address || event.location_name || event.maps_url) && (
                           <a 
-                            href={getGoogleMapsLink(event.address, event.location_name)}
+                            href={getGoogleMapsLink(event.maps_url, event.address, event.location_name)}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{
