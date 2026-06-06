@@ -693,13 +693,53 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                   </select>
                 </div>
 
+                {/* Flight lookup — show FIRST for flight type */}
+                {eventForm.type === 'flight' && (
+                  <div style={{ 
+                    background: 'rgba(99, 102, 241, 0.04)', 
+                    border: '1px solid rgba(99, 102, 241, 0.15)', 
+                    borderRadius: 'var(--radius-sm)', 
+                    padding: '16px', 
+                    marginBottom: '20px' 
+                  }}>
+                    <h4 style={{ fontSize: '0.85rem', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', fontWeight: 700 }}>
+                      ✈️ Step 1: Look up flight
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'flex-end' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Flight Number</label>
+                        <input 
+                          type="text" 
+                          name="details.flight_number" 
+                          className="form-input" 
+                          placeholder="e.g., IB1143" 
+                          value={eventForm.details.flight_number}
+                          onChange={handleEventFormChange}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleFlightLookup}
+                        className="btn btn-primary"
+                        style={{ height: '42px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        disabled={lookupLoading}
+                      >
+                        {lookupLoading ? 'Searching...' : '🔍 Search Flight Info'}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', marginBottom: 0 }}>
+                      Enter the flight number and search to auto-fill departure, arrival, and times. Then adjust the date below.
+                    </p>
+                  </div>
+                )}
+
                 <div className="form-group">
                   <label className="form-label">Event Title <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input 
                     type="text" 
                     name="title" 
                     className="form-input" 
-                    placeholder="e.g. Flight UA92 to LHR or Welcome Dinner" 
+                    placeholder={eventForm.type === 'flight' ? 'Auto-filled after flight search' : 'e.g. Welcome Dinner or Eurostar to Paris'} 
                     value={eventForm.title}
                     onChange={handleEventFormChange}
                     required
@@ -708,7 +748,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">Start Date (UTC) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Date (UTC)' : 'Start Date (UTC)'} <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <input 
                       type="date" 
                       name="start_date" 
@@ -719,7 +759,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Start Time (24h UTC)</label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Time (24h UTC)' : 'Start Time (24h UTC)'}</label>
                     <input 
                       type="time" 
                       name="start_time" 
@@ -732,7 +772,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">End Date (UTC)</label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Date (UTC)' : 'End Date (UTC)'}</label>
                     <input 
                       type="date" 
                       name="end_date" 
@@ -742,7 +782,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">End Time (24h UTC)</label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Time (24h UTC)' : 'End Time (24h UTC)'}</label>
                     <input 
                       type="time" 
                       name="end_time" 
@@ -755,23 +795,23 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">Location / Terminal</label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Airport' : 'Location / Terminal'}</label>
                     <input 
                       type="text" 
                       name="location_name" 
                       className="form-input" 
-                      placeholder="e.g. Logan Airport Terminal E" 
+                      placeholder={eventForm.type === 'flight' ? 'Auto-filled after search' : 'e.g. Logan Airport Terminal E'} 
                       value={eventForm.location_name}
                       onChange={handleEventFormChange}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Street Address</label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Airport' : 'Street Address'}</label>
                     <input 
                       type="text" 
                       name="address" 
                       className="form-input" 
-                      placeholder="e.g. London, SE1 9EF, UK" 
+                      placeholder={eventForm.type === 'flight' ? 'Auto-filled after search' : 'e.g. London, SE1 9EF, UK'} 
                       value={eventForm.address}
                       onChange={handleEventFormChange}
                     />
@@ -790,33 +830,8 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                   borderRadius: 'var(--radius-sm)'
                 }}>
                   <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>
-                    Category Specific Fields
+                    {eventForm.type === 'flight' ? 'Additional Flight Notes' : 'Category Specific Fields'}
                   </h4>
-
-                  {eventForm.type === 'flight' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'flex-end' }}>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Flight Number</label>
-                        <input 
-                          type="text" 
-                          name="details.flight_number" 
-                          className="form-input" 
-                          placeholder="e.g., UA924" 
-                          value={eventForm.details.flight_number}
-                          onChange={handleEventFormChange}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleFlightLookup}
-                        className="btn btn-secondary"
-                        style={{ height: '42px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                        disabled={lookupLoading}
-                      >
-                        {lookupLoading ? 'Searching...' : '🔍 Search Flight Info'}
-                      </button>
-                    </div>
-                  )}
 
                   {eventForm.type === 'train' && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>

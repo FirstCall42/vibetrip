@@ -464,8 +464,8 @@ export async function lookupFlightAction(flightNumber, dateStr) {
     console.log(`[FlightLookup] API key found (${apiKey.substring(0, 4)}...). Querying Aviationstack for ${cleanNum} on ${date}`);
     
     try {
-      // Aviationstack free plan ONLY supports HTTP (not HTTPS)
-      const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${cleanNum}&flight_date=${date}`;
+      // Aviationstack free plan: HTTP only, no flight_date filter (paid feature)
+      const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${cleanNum}`;
       console.log(`[FlightLookup] URL: ${url.replace(apiKey, 'REDACTED')}`);
       
       const res = await fetch(url);
