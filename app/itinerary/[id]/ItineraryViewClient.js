@@ -104,7 +104,6 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
       return `${dayName}, ${dateStr} • ${timeStr} UTC`;
     }
   };
-  };
 
   const getTravelerColor = (id) => {
     const t = travelers.find(trav => trav.id === id);
