@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { localToUTC, utcToLocal } from '../../../lib/timezoneUtils';
 import { 
   updateItineraryAction, 
   deleteItineraryAction,
@@ -29,11 +30,24 @@ const getUTCTimePart = (isoString) => {
   return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 };
 
-// Combine YYYY-MM-DD and HH:MM to UTC ISO string
-const combineDateTimeToUTC = (dateStr, timeStr) => {
+// Local time utilities with timezone support
+const getLocalDatePart = (isoString, timezone) => {
+  if (!isoString || !timezone) return '';
+  const local = utcToLocal(isoString, timezone);
+  return local.dateStr;
+};
+
+const getLocalTimePart = (isoString, timezone) => {
+  if (!isoString || !timezone) return '';
+  const local = utcToLocal(isoString, timezone);
+  return local.timeStr;
+};
+
+// Combine YYYY-MM-DD and HH:MM to UTC ISO string, accounting for timezone
+const combineDateTimeToUTC = (dateStr, timeStr, timezone = 'America/New_York') => {
   if (!dateStr) return '';
   const actualTime = timeStr || '00:00';
-  return new Date(`${dateStr}T${actualTime}:00.000Z`).toISOString();
+  return localToUTC(dateStr, actualTime, timezone);
 };
 
 export default function ItineraryEditClient({ itinerary, travelers: initialTravelers, events: initialEvents }) {
@@ -70,6 +84,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     location_name: '',
     address: '',
     maps_url: '',
+    timezone: 'America/New_York',
     traveler_ids: [],
     details: {
       flight_number: '',
@@ -186,6 +201,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
       location_name: '',
       address: '',
       maps_url: '',
+      timezone: 'America/New_York',
       traveler_ids: [],
       details: {
         flight_number: '',
@@ -257,11 +273,12 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
       itinerary_id: itinerary.id,
       type: eventForm.type,
       title: eventForm.title,
-      start_time: combineDateTimeToUTC(eventForm.start_date, eventForm.start_time),
-      end_time: eventForm.end_date ? combineDateTimeToUTC(eventForm.end_date, eventForm.end_time) : null,
+      start_time: combineDateTimeToUTC(eventForm.start_date, eventForm.start_time, eventForm.timezone),
+      end_time: eventForm.end_date ? combineDateTimeToUTC(eventForm.end_date, eventForm.end_time, eventForm.timezone) : null,
       location_name: eventForm.location_name,
       address: eventForm.address,
       maps_url: eventForm.maps_url,
+      timezone: eventForm.timezone,
       traveler_ids: eventForm.traveler_ids,
       details: eventForm.details
     };
@@ -294,13 +311,14 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     setEventForm({
       type: event.type,
       title: event.title,
-      start_date: getUTCDatePart(event.start_time),
-      start_time: getUTCTimePart(event.start_time),
-      end_date: event.end_time ? getUTCDatePart(event.end_time) : '',
-      end_time: event.end_time ? getUTCTimePart(event.end_time) : '',
+      start_date: getLocalDatePart(event.start_time, event.timezone || 'America/New_York'),
+      start_time: getLocalTimePart(event.start_time, event.timezone || 'America/New_York'),
+      end_date: event.end_time ? getLocalDatePart(event.end_time, event.timezone || 'America/New_York') : '',
+      end_time: event.end_time ? getLocalTimePart(event.end_time, event.timezone || 'America/New_York') : '',
       location_name: event.location_name || '',
       address: event.address || '',
       maps_url: event.maps_url || '',
+      timezone: event.timezone || 'America/New_York',
       traveler_ids: event.traveler_ids || [],
       details: {
         flight_number: event.details?.flight_number || '',
@@ -337,6 +355,49 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     { label: 'Rose', value: '#f43f5e' },
     { label: 'Purple', value: '#8b5cf6' },
     { label: 'Slate', value: '#64748b' }
+  ];
+
+  // Common timezones
+  const timezones = [
+    // North America
+    { group: 'North America', options: [
+      { label: 'New York (EST/EDT)', value: 'America/New_York' },
+      { label: 'Chicago (CST/CDT)', value: 'America/Chicago' },
+      { label: 'Denver (MST/MDT)', value: 'America/Denver' },
+      { label: 'Los Angeles (PST/PDT)', value: 'America/Los_Angeles' },
+      { label: 'Anchorage (AKST/AKDT)', value: 'America/Anchorage' },
+      { label: 'Honolulu (HST)', value: 'Pacific/Honolulu' },
+      { label: 'Toronto (EST/EDT)', value: 'America/Toronto' },
+      { label: 'Mexico City (CST/CDT)', value: 'America/Mexico_City' }
+    ]},
+    // Europe
+    { group: 'Europe', options: [
+      { label: 'London (GMT/BST)', value: 'Europe/London' },
+      { label: 'Paris (CET/CEST)', value: 'Europe/Paris' },
+      { label: 'Berlin (CET/CEST)', value: 'Europe/Berlin' },
+      { label: 'Madrid (CET/CEST)', value: 'Europe/Madrid' },
+      { label: 'Amsterdam (CET/CEST)', value: 'Europe/Amsterdam' },
+      { label: 'Rome (CET/CEST)', value: 'Europe/Rome' },
+      { label: 'Istanbul (EET/EEST)', value: 'Europe/Istanbul' },
+      { label: 'Moscow (MSK)', value: 'Europe/Moscow' }
+    ]},
+    // Asia
+    { group: 'Asia', options: [
+      { label: 'Dubai (GST)', value: 'Asia/Dubai' },
+      { label: 'Delhi (IST)', value: 'Asia/Kolkata' },
+      { label: 'Bangkok (ICT)', value: 'Asia/Bangkok' },
+      { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
+      { label: 'Hong Kong (HKT)', value: 'Asia/Hong_Kong' },
+      { label: 'Shanghai (CST)', value: 'Asia/Shanghai' },
+      { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
+      { label: 'Seoul (KST)', value: 'Asia/Seoul' }
+    ]},
+    // Oceania
+    { group: 'Oceania', options: [
+      { label: 'Sydney (AEDT/AEST)', value: 'Australia/Sydney' },
+      { label: 'Melbourne (AEDT/AEST)', value: 'Australia/Melbourne' },
+      { label: 'Auckland (NZDT/NZST)', value: 'Pacific/Auckland' }
+    ]}
   ];
 
   return (
@@ -834,6 +895,56 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                   />
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                     Paste the Google Maps URL directly from your browser for a precise location link.
+                  </p>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Event Timezone</label>
+                  <select 
+                    name="timezone" 
+                    className="form-input" 
+                    value={eventForm.timezone}
+                    onChange={handleEventFormChange}
+                    style={{ background: 'var(--bg-main)' }}
+                  >
+                    <optgroup label="North America">
+                      <option value="America/New_York">New York (EST/EDT)</option>
+                      <option value="America/Chicago">Chicago (CST/CDT)</option>
+                      <option value="America/Denver">Denver (MST/MDT)</option>
+                      <option value="America/Los_Angeles">Los Angeles (PST/PDT)</option>
+                      <option value="America/Anchorage">Anchorage (AKST/AKDT)</option>
+                      <option value="Pacific/Honolulu">Honolulu (HST)</option>
+                      <option value="America/Toronto">Toronto (EST/EDT)</option>
+                      <option value="America/Mexico_City">Mexico City (CST/CDT)</option>
+                    </optgroup>
+                    <optgroup label="Europe">
+                      <option value="Europe/London">London (GMT/BST)</option>
+                      <option value="Europe/Paris">Paris (CET/CEST)</option>
+                      <option value="Europe/Berlin">Berlin (CET/CEST)</option>
+                      <option value="Europe/Madrid">Madrid (CET/CEST)</option>
+                      <option value="Europe/Amsterdam">Amsterdam (CET/CEST)</option>
+                      <option value="Europe/Rome">Rome (CET/CEST)</option>
+                      <option value="Europe/Istanbul">Istanbul (EET/EEST)</option>
+                      <option value="Europe/Moscow">Moscow (MSK)</option>
+                    </optgroup>
+                    <optgroup label="Asia">
+                      <option value="Asia/Dubai">Dubai (GST)</option>
+                      <option value="Asia/Kolkata">Delhi (IST)</option>
+                      <option value="Asia/Bangkok">Bangkok (ICT)</option>
+                      <option value="Asia/Singapore">Singapore (SGT)</option>
+                      <option value="Asia/Hong_Kong">Hong Kong (HKT)</option>
+                      <option value="Asia/Shanghai">Shanghai (CST)</option>
+                      <option value="Asia/Tokyo">Tokyo (JST)</option>
+                      <option value="Asia/Seoul">Seoul (KST)</option>
+                    </optgroup>
+                    <optgroup label="Oceania">
+                      <option value="Australia/Sydney">Sydney (AEDT/AEST)</option>
+                      <option value="Australia/Melbourne">Melbourne (AEDT/AEST)</option>
+                      <option value="Pacific/Auckland">Auckland (NZDT/NZST)</option>
+                    </optgroup>
+                  </select>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Select the local timezone where this event occurs. Dates and times you enter will be converted to UTC for storage.
                   </p>
                 </div>
 

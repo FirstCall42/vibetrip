@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { formatLocalTime } from '../../../lib/timezoneUtils';
 
 export default function ItineraryViewClient({ itinerary, travelers, events, isOwner }) {
   const [selectedTravelerId, setSelectedTravelerId] = useState('all');
@@ -90,14 +91,19 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
     }
   };
 
-  const formatEventTime = (isoString) => {
-    const d = new Date(isoString);
-    const pad = (n) => n.toString().padStart(2, '0');
-    // Format: "Sat, 2026-06-16 • 19:30 UTC"
-    const dayName = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
-    const dateStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
-    const timeStr = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
-    return `${dayName}, ${dateStr} • ${timeStr} UTC`;
+  const formatEventTime = (isoString, timezone = 'America/New_York') => {
+    try {
+      return formatLocalTime(isoString, timezone);
+    } catch (e) {
+      // Fallback to UTC format if timezone formatting fails
+      const d = new Date(isoString);
+      const pad = (n) => n.toString().padStart(2, '0');
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+      const dateStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+      const timeStr = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+      return `${dayName}, ${dateStr} • ${timeStr} UTC`;
+    }
+  };
   };
 
   const getTravelerColor = (id) => {
@@ -272,7 +278,7 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                         {event.type}
                       </span>
                       <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                        {formatEventTime(event.start_time)}
+                        {formatEventTime(event.start_time, event.timezone || 'America/New_York')}
                       </span>
                     </div>
 
@@ -317,6 +323,13 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                             🗺️ Maps
                           </a>
                         )}
+                      </p>
+                    )}
+
+                    {/* Timezone Info */}
+                    {event.timezone && (
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        🕐 Times shown in <strong>{event.timezone.replace('_', ' ')}</strong> timezone
                       </p>
                     )}
 
