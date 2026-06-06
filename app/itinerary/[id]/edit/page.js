@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getItineraryAction, getTravelersAction, getEventsAction, getCurrentUser, isUserAdmin } from '../../../actions';
+import { getItineraryAction, getTravelersAction, getEventsAction, getCurrentUser, isItineraryOwner } from '../../../actions';
 import ItineraryEditClient from './ItineraryEditClient';
 
 export const dynamic = 'force-dynamic';
@@ -13,9 +13,9 @@ export default async function ItineraryEditPage({ params }) {
     redirect('/login');
   }
 
-  // Ensure user has admin privileges
-  const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) {
+  // Ensure user has ownership edit privileges for this itinerary
+  const isOwner = await isItineraryOwner(id, user);
+  if (!isOwner) {
     redirect('/');
   }
 

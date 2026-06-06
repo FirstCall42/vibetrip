@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getItineraryAction, getTravelersAction, getEventsAction, getCurrentUser, isUserAdmin } from '../../actions';
+import { getItineraryAction, getTravelersAction, getEventsAction, getCurrentUser, isItineraryOwner } from '../../actions';
 import ItineraryViewClient from './ItineraryViewClient';
 
 export const dynamic = 'force-dynamic';
@@ -40,8 +40,8 @@ export default async function ItineraryPage({ params }) {
     );
   }
 
-  // Check if user has admin permissions
-  const isOwner = user ? await isUserAdmin(user) : false;
+  // Check if user has edit permissions for this itinerary
+  const isOwner = user ? await isItineraryOwner(id, user) : false;
 
   return (
     <ItineraryViewClient 

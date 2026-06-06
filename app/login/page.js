@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 import { loginAction } from '../actions';
 
 export default function Login() {
@@ -35,15 +36,34 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     setError('');
-    // Lightweight mock Google login: creates/uses a mock account for convenience
-    setLoading(true);
-    const res = await loginAction('google-mock@family.com', 'google-mock-pass');
-    setLoading(false);
-    if (res.success) {
-      router.push('/');
-      router.refresh();
+    
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseAnonKey) {
+      try {
+        const client = createClient(supabaseUrl, supabaseAnonKey);
+        const { error } = await client.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback`
+          }
+        });
+        if (error) setError(error.message);
+      } catch (err) {
+        setError(err.message || 'Google OAuth failed to initialize');
+      }
     } else {
-      setError(res.error || 'Google login failed');
+      // Lightweight mock Google login: creates/uses a mock account for convenience
+      setLoading(true);
+      const res = await loginAction('google-mock@family.com', 'google-mock-pass');
+      setLoading(false);
+      if (res.success) {
+        router.push('/');
+        router.refresh();
+      } else {
+        setError(res.error || 'Google login failed');
+      }
     }
   };
 

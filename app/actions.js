@@ -8,12 +8,25 @@ import * as db from '@/lib/db';
 const supabaseUrl = db.supabaseUrl;
 const supabaseAnonKey = db.supabaseAnonKey;
 
-// Verify administrator privilege
-export async function isUserAdmin(user) {
+// Helper to determine if we are in cloud mode
+export async function isCloudMode() {
+  return db.isSupabaseConfigured;
+}
+
+// Verify itinerary ownership
+export async function isItineraryOwner(itineraryId, user) {
   if (!user) return false;
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!adminEmail) return false;
-  return user.email.toLowerCase() === adminEmail.toLowerCase();
+  
+  // Local mode mock: bypass ownership checks for ease of offline testing
+  if (!db.isSupabaseConfigured) return true;
+  
+  try {
+    const itinerary = await db.getItinerary(itineraryId);
+    return itinerary && itinerary.owner_id === user.id;
+  } catch (error) {
+    console.error("Error checking itinerary ownership:", error);
+    return false;
+  }
 }
 
 // Fetch current session user safely
@@ -59,29 +72,26 @@ export async function loginAction(email, password) {
   if (!email || !password) {
     return { success: false, error: 'Email and password are required.' };
   }
-  // If Supabase is configured, perform real auth and upsert a profile
+  
+  // If Supabase is configured, perform real auth
   if (db.isSupabaseConfigured) {
     try {
       const client = createClient(supabaseUrl, supabaseAnonKey);
       // Try sign in
       const { data, error } = await client.auth.signInWithPassword({ email, password });
 
-      // If signin failed, attempt signup
+      // If signin failed, attempt signup (convenient auto-registration)
       if (error) {
         const { data: signUpData, error: signUpError } = await client.auth.signUp({ email, password });
         if (signUpError) {
           return { success: false, error: signUpError.message || error.message };
         }
 
-        // If signup produced a session, set cookie and upsert profile
+        // If signup produced a session, set cookie and return
         if (signUpData.session) {
           const token = signUpData.session.access_token;
           const userObj = { id: signUpData.user.id, email: signUpData.user.email, name: signUpData.user.email.split('@')[0] };
-          try {
-            await db.upsertProfileSupabase({ id: userObj.id, email: userObj.email, full_name: userObj.name }, token);
-          } catch (e) {
-            // ignore profile upsert failures
-          }
+          
           const cookieStore = await cookies();
           cookieStore.set('supabase-access-token', token, {
             httpOnly: true,
@@ -105,16 +115,13 @@ export async function loginAction(email, password) {
               },
               body: JSON.stringify({ email, password, email_confirm: true })
             });
-            const adminData = await adminRes.json();
             if (adminRes.ok) {
               // Try signing in now that the user is confirmed
               const { data: signInData, error: signInError } = await client.auth.signInWithPassword({ email, password });
               if (!signInError && signInData?.session) {
                 const token = signInData.session.access_token;
                 const userObj = { id: signInData.user.id, email: signInData.user.email, name: signInData.user.email.split('@')[0] };
-                try {
-                  await db.upsertProfileSupabase({ id: userObj.id, email: userObj.email, full_name: userObj.name }, token);
-                } catch (e) {}
+                
                 const cookieStore = await cookies();
                 cookieStore.set('supabase-access-token', token, {
                   httpOnly: true,
@@ -126,7 +133,7 @@ export async function loginAction(email, password) {
               }
             }
           } catch (e) {
-            // fall through to returning the confirmation-required error
+            // fall through to returning the confirmation error
           }
         }
 
@@ -136,11 +143,7 @@ export async function loginAction(email, password) {
       // Successful sign in
       const token = data.session.access_token;
       const userObj = { id: data.user.id, email: data.user.email, name: data.user.email.split('@')[0] };
-      try {
-        await db.upsertProfileSupabase({ id: userObj.id, email: userObj.email, full_name: userObj.name }, token);
-      } catch (e) {
-        // ignore profile upsert failures
-      }
+      
       const cookieStore = await cookies();
       cookieStore.set('supabase-access-token', token, {
         httpOnly: true,
@@ -213,11 +216,6 @@ export async function createItineraryAction(data) {
     return { success: false, error: "Unauthorized" };
   }
   
-  const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) {
-    return { success: false, error: "Only admins can create itineraries." };
-  }
-  
   try {
     const newItinerary = await db.createItinerary({
       title: data.title,
@@ -239,8 +237,8 @@ export async function updateItineraryAction(id, updates) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) throw new Error("Only admins can modify itineraries.");
+  const isOwner = await isItineraryOwner(id, user);
+  if (!isOwner) throw new Error("Unauthorized: You do not own this itinerary.");
   
   try {
     const updated = await db.updateItinerary(id, updates);
@@ -257,8 +255,8 @@ export async function deleteItineraryAction(id) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) throw new Error("Only admins can delete itineraries.");
+  const isOwner = await isItineraryOwner(id, user);
+  if (!isOwner) throw new Error("Unauthorized: You do not own this itinerary.");
   
   try {
     await db.deleteItinerary(id);
@@ -284,8 +282,8 @@ export async function createTravelerAction(itineraryId, name, colorCode) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) throw new Error("Only admins can manage travelers.");
+  const isOwner = await isItineraryOwner(itineraryId, user);
+  if (!isOwner) throw new Error("Unauthorized: You do not own this itinerary.");
   
   try {
     const newTraveler = await db.createTraveler({
@@ -305,8 +303,8 @@ export async function deleteTravelerAction(id, itineraryId) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) throw new Error("Only admins can manage travelers.");
+  const isOwner = await isItineraryOwner(itineraryId, user);
+  if (!isOwner) throw new Error("Unauthorized: You do not own this itinerary.");
   
   try {
     await db.deleteTraveler(id);
@@ -332,8 +330,8 @@ export async function createEventAction(eventData) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) throw new Error("Only admins can manage events.");
+  const isOwner = await isItineraryOwner(eventData.itinerary_id, user);
+  if (!isOwner) throw new Error("Unauthorized: You do not own this itinerary.");
   
   try {
     const newEvent = await db.createEvent({
@@ -359,8 +357,8 @@ export async function updateEventAction(id, itineraryId, updates) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) throw new Error("Only admins can manage events.");
+  const isOwner = await isItineraryOwner(itineraryId, user);
+  if (!isOwner) throw new Error("Unauthorized: You do not own this itinerary.");
   
   try {
     const updated = await db.updateEvent(id, updates);
@@ -376,8 +374,8 @@ export async function deleteEventAction(id, itineraryId) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const isAdmin = await isUserAdmin(user);
-  if (!isAdmin) throw new Error("Only admins can manage events.");
+  const isOwner = await isItineraryOwner(itineraryId, user);
+  if (!isOwner) throw new Error("Unauthorized: You do not own this itinerary.");
   
   try {
     await db.deleteEvent(id);
