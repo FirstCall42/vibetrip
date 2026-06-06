@@ -72,7 +72,6 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     traveler_ids: [],
     details: {
       flight_number: '',
-      confirmation: '',
       train_number: '',
       coach: '',
       seats: '',
@@ -635,7 +634,11 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                             {event.title}
                           </h4>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            📅 {new Date(event.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} (UTC)
+                            📅 {(() => {
+                              const ed = new Date(event.start_time);
+                              const ep = (n) => n.toString().padStart(2, '0');
+                              return `${ed.getUTCFullYear()}-${ep(ed.getUTCMonth()+1)}-${ep(ed.getUTCDate())} ${ep(ed.getUTCHours())}:${ep(ed.getUTCMinutes())} UTC`;
+                            })()}
                           </span>
                         </div>
 
@@ -855,17 +858,6 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                   {eventForm.type === 'hotel' && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Confirmation Code</label>
-                        <input 
-                          type="text" 
-                          name="details.confirmation" 
-                          className="form-input" 
-                          placeholder="Reservation ref" 
-                          value={eventForm.details.confirmation}
-                          onChange={handleEventFormChange}
-                        />
-                      </div>
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Phone Number</label>
                         <input 

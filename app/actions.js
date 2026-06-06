@@ -460,13 +460,40 @@ export async function lookupFlightAction(flightNumber, dateStr) {
   const apiKey = process.env.FLIGHT_API_KEY;
   if (apiKey) {
     try {
-      // Note: Aviationstack free plan uses http protocol
-      const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${cleanNum}`;
+      // Aviationstack free plan uses http (https requires paid plan)
+      const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${cleanNum}&flight_date=${date}`;
+      console.log(`[FlightLookup] Requesting Aviationstack: flight_iata=${cleanNum}, flight_date=${date}`);
+      console.log(`[FlightLookup] URL: ${url.replace(apiKey, 'REDACTED')}`);
+      
       const res = await fetch(url);
+      console.log(`[FlightLookup] Response status: ${res.status} ${res.statusText}`);
+      
       if (res.ok) {
         const result = await res.json();
+        console.log(`[FlightLookup] Response body keys: ${Object.keys(result).join(', ')}`);
+        
+        if (result.error) {
+          console.error(`[FlightLookup] API error:`, result.error);
+        }
+        
         if (result && Array.isArray(result.data) && result.data.length > 0) {
+          console.log(`[FlightLookup] Found ${result.data.length} flight(s) for ${cleanNum}`);
           const flight = result.data.find(f => f.flight_date === date) || result.data[0];
+          
+          console.log(`[FlightLookup] Selected flight:`, JSON.stringify({
+            flight_date: flight.flight_date,
+            airline: flight.airline?.name,
+            departure_airport: flight.departure?.airport,
+            departure_iata: flight.departure?.iata,
+            departure_scheduled: flight.departure?.scheduled,
+            departure_terminal: flight.departure?.terminal,
+            arrival_airport: flight.arrival?.airport,
+            arrival_iata: flight.arrival?.iata,
+            arrival_scheduled: flight.arrival?.scheduled,
+            arrival_terminal: flight.arrival?.terminal,
+            flight_status: flight.flight_status
+          }, null, 2));
+          
           return {
             success: true,
             flightNumber: cleanNum,
@@ -480,11 +507,18 @@ export async function lookupFlightAction(flightNumber, dateStr) {
             departureTerminal: flight.departure?.terminal || '',
             arrivalTerminal: flight.arrival?.terminal || ''
           };
+        } else {
+          console.log(`[FlightLookup] No flight data returned for ${cleanNum} on ${date}. data array length: ${result.data?.length ?? 'undefined'}`);
         }
+      } else {
+        const body = await res.text();
+        console.error(`[FlightLookup] HTTP error ${res.status}: ${body.substring(0, 500)}`);
       }
     } catch (err) {
-      console.warn("Aviationstack API request failed, falling back to mock details:", err);
+      console.error("[FlightLookup] Aviationstack API request failed, falling back to mock details:", err);
     }
+  } else {
+    console.log("[FlightLookup] No FLIGHT_API_KEY configured, using mock data");
   }
 
   const carrierCode = cleanNum.slice(0, 2);

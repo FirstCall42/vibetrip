@@ -92,11 +92,12 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
 
   const formatEventTime = (isoString) => {
     const d = new Date(isoString);
-    // Format: "Monday, Jun 16 • 7:30 PM"
+    const pad = (n) => n.toString().padStart(2, '0');
+    // Format: "Sat, 2026-06-16 • 19:30 UTC"
     const dayName = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
-    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-    const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-    return `${dayName}, ${dateStr} • ${timeStr}`;
+    const dateStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+    const timeStr = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+    return `${dayName}, ${dateStr} • ${timeStr} UTC`;
   };
 
   const getTravelerColor = (id) => {
@@ -289,18 +290,22 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                       {event.type === 'flight' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                           <div><strong>Flight No:</strong> {event.details.flight_number || 'N/A'}</div>
-                          {event.end_time && <div><strong>Arrival Time:</strong> {new Date(event.end_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} (UTC)</div>}
+                          {event.end_time && (() => {
+                            const ad = new Date(event.end_time);
+                            const ap = (n) => n.toString().padStart(2, '0');
+                            return <div><strong>Arrival:</strong> {`${ad.getUTCFullYear()}-${ap(ad.getUTCMonth()+1)}-${ap(ad.getUTCDate())} ${ap(ad.getUTCHours())}:${ap(ad.getUTCMinutes())} UTC`}</div>;
+                          })()}
                           {event.details.notes && <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {event.details.notes}</div>}
                           {event.details.flight_number && (
                             <div style={{ gridColumn: '1 / -1', borderTop: '1px dashed var(--border-color)', paddingTop: '12px', marginTop: '4px' }}>
                               <a 
-                                href={`https://flightaware.com/live/flight/${event.details.flight_number.replace(/\s+/g, '')}`} 
+                                href={`https://www.flightradar24.com/data/flights/${event.details.flight_number.replace(/\s+/g, '').toLowerCase()}`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="btn btn-secondary btn-sm"
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--accent-cyan)', borderColor: 'rgba(6, 182, 212, 0.3)' }}
                               >
-                                ✈️ Track Live on FlightAware
+                                ✈️ Track Live on Flightradar24
                               </a>
                             </div>
                           )}
@@ -317,9 +322,12 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
 
                       {event.type === 'hotel' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                          <div><strong>Confirmation:</strong> {event.details.confirmation || 'N/A'}</div>
                           <div><strong>Phone:</strong> {event.details.phone || 'N/A'}</div>
-                          {event.end_time && <div><strong>Checkout Date:</strong> {new Date(event.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</div>}
+                          {event.end_time && (() => {
+                            const cd = new Date(event.end_time);
+                            const cp = (n) => n.toString().padStart(2, '0');
+                            return <div><strong>Checkout:</strong> {`${cd.getUTCFullYear()}-${cp(cd.getUTCMonth()+1)}-${cp(cd.getUTCDate())}`}</div>;
+                          })()}
                           {event.details.notes && <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {event.details.notes}</div>}
                         </div>
                       )}
