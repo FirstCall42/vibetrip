@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { localToUTC, utcToLocal } from '@/lib/timezoneUtils';
+import { localToUTC, utcToLocal, formatLocalTime } from '@/lib/timezoneUtils';
 import { 
   updateItineraryAction, 
   deleteItineraryAction,
@@ -699,11 +699,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                             {event.title}
                           </h4>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            📅 {(() => {
-                              const ed = new Date(event.start_time);
-                              const ep = (n) => n.toString().padStart(2, '0');
-                              return `${ed.getUTCFullYear()}-${ep(ed.getUTCMonth()+1)}-${ep(ed.getUTCDate())} ${ep(ed.getUTCHours())}:${ep(ed.getUTCMinutes())} UTC`;
-                            })()}
+                            📅 {formatLocalTime(event.start_time, event.timezone || 'America/New_York')}
                           </span>
                         </div>
 
@@ -813,7 +809,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Date (UTC)' : 'Start Date (UTC)'} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Date' : 'Start Date'} <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <input 
                       type="date" 
                       name="start_date" 
@@ -824,7 +820,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Time (24h UTC)' : 'Start Time (24h UTC)'}</label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Time' : 'Start Time'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(24h)</span></label>
                     <input 
                       type="time" 
                       name="start_time" 
@@ -837,7 +833,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Date (UTC)' : 'End Date (UTC)'}</label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Date' : 'End Date'}</label>
                     <input 
                       type="date" 
                       name="end_date" 
@@ -847,7 +843,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Time (24h UTC)' : 'End Time (24h UTC)'}</label>
+                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Time' : 'End Time'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(24h)</span></label>
                     <input 
                       type="time" 
                       name="end_time" 
@@ -946,6 +942,20 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                     Select the local timezone where this event occurs. Dates and times you enter will be converted to UTC for storage.
                   </p>
+                </div>
+
+                {/* 📌 REMINDER: Times are entered in selected timezone */}
+                <div style={{ 
+                  background: 'rgba(59, 130, 246, 0.05)', 
+                  border: '1px solid rgba(59, 130, 246, 0.2)', 
+                  borderRadius: 'var(--radius-sm)', 
+                  padding: '12px 16px', 
+                  marginBottom: '20px',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-main)',
+                  lineHeight: '1.4'
+                }}>
+                  <strong>📍 All dates and times below are entered in your timezone <span style={{ textDecoration: 'underline' }}>{eventForm.timezone}</span></strong>. We convert to UTC for storage, but you'll always see them in this timezone.
                 </div>
 
                 {/* ------------------------------ */}
