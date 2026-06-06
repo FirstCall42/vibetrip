@@ -344,11 +344,7 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                       {event.type === 'flight' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                           <div><strong>Flight No:</strong> {event.details.flight_number || 'N/A'}</div>
-                          {event.end_time && (() => {
-                            const ad = new Date(event.end_time);
-                            const ap = (n) => n.toString().padStart(2, '0');
-                            return <div><strong>Arrival:</strong> {`${ad.getUTCFullYear()}-${ap(ad.getUTCMonth()+1)}-${ap(ad.getUTCDate())} ${ap(ad.getUTCHours())}:${ap(ad.getUTCMinutes())} UTC`}</div>;
-                          })()}
+                          {event.end_time && <div><strong>Arrival:</strong> {formatEventTime(event.end_time, event.timezone || 'America/New_York')}</div>}
                           {event.details.notes && <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {event.details.notes}</div>}
                           {event.details.flight_number && (
                             <div style={{ gridColumn: '1 / -1', borderTop: '1px dashed var(--border-color)', paddingTop: '12px', marginTop: '4px' }}>
@@ -377,11 +373,7 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                       {event.type === 'hotel' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                           <div><strong>Phone:</strong> {event.details.phone || 'N/A'}</div>
-                          {event.end_time && (() => {
-                            const cd = new Date(event.end_time);
-                            const cp = (n) => n.toString().padStart(2, '0');
-                            return <div><strong>Checkout:</strong> {`${cd.getUTCFullYear()}-${cp(cd.getUTCMonth()+1)}-${cp(cd.getUTCDate())}`}</div>;
-                          })()}
+                          {event.end_time && <div><strong>Checkout:</strong> {formatEventTime(event.end_time, event.timezone || 'America/New_York').split(' ').slice(0, 3).join(' ')}</div>}
                           {event.details.notes && <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {event.details.notes}</div>}
                         </div>
                       )}
