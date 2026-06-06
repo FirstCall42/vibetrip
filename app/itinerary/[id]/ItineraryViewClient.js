@@ -110,6 +110,13 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
     return t ? t.name : 'Unknown';
   };
 
+  const getGoogleMapsLink = (address, locationName) => {
+    const searchQuery = address || locationName;
+    if (!searchQuery) return null;
+    const encodedQuery = encodeURIComponent(searchQuery);
+    return `https://www.google.com/maps/search/${encodedQuery}`;
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header bar */}
@@ -272,9 +279,41 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
 
                     {/* Location Row */}
                     {event.location_name && (
-                      <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '16px' }}>
-                        📍 <span>{event.location_name}</span>
-                        {event.address && <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>({event.address})</span>}
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          📍 <span>{event.location_name}</span>
+                          {event.address && <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>({event.address})</span>}
+                        </span>
+                        {(event.address || event.location_name) && (
+                          <a 
+                            href={getGoogleMapsLink(event.address, event.location_name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.8rem',
+                              color: 'var(--accent-cyan)',
+                              textDecoration: 'none',
+                              padding: '2px 8px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid rgba(6, 182, 212, 0.3)',
+                              transition: 'all 0.2s ease',
+                              cursor: 'pointer'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(6, 182, 212, 0.08)';
+                              e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.6)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.3)';
+                            }}
+                          >
+                            🗺️ Maps
+                          </a>
+                        )}
                       </p>
                     )}
 
