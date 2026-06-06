@@ -96,7 +96,7 @@ export async function loginAction(email, password) {
           cookieStore.set('supabase-access-token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: 'lax',
             maxAge: 60 * 60 * 24 * 7
           });
           return { success: true, user: userObj };
@@ -126,7 +126,7 @@ export async function loginAction(email, password) {
                 cookieStore.set('supabase-access-token', token, {
                   httpOnly: true,
                   secure: process.env.NODE_ENV === 'production',
-                  sameSite: 'strict',
+                  sameSite: 'lax',
                   maxAge: 60 * 60 * 24 * 7
                 });
                 return { success: true, user: userObj };
@@ -148,7 +148,7 @@ export async function loginAction(email, password) {
       cookieStore.set('supabase-access-token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7
       });
       return { success: true, user: userObj };
@@ -165,7 +165,7 @@ export async function loginAction(email, password) {
       cookieStore.set('mock-user-session', JSON.stringify(existing), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7
       });
       return { success: true, user: existing };
@@ -175,7 +175,7 @@ export async function loginAction(email, password) {
     cookieStore.set('mock-user-session', JSON.stringify(newUser), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7
     });
     return { success: true, user: newUser };
