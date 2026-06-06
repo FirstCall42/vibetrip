@@ -386,3 +386,14 @@ export async function deleteEventAction(id, itineraryId) {
     return { success: false, error: error.message };
   }
 }
+
+export async function setSessionCookieAction(token) {
+  const cookieStore = await cookies();
+  cookieStore.set('supabase-access-token', token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7 // 1 week
+  });
+  return { success: true };
+}
