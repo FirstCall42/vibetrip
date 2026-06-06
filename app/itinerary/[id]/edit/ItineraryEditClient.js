@@ -10,22 +10,30 @@ import {
   deleteTravelerAction,
   createEventAction, 
   updateEventAction, 
-  deleteEventAction 
+  deleteEventAction,
+  lookupFlightAction
 } from '../../../actions';
 
-// Date utility to format to UTC datetime-local input
-const toDatetimeLocalUTC = (isoString) => {
+// Date utilities to extract UTC parts for inputs
+const getUTCDatePart = (isoString) => {
   if (!isoString) return '';
   const d = new Date(isoString);
   const pad = (n) => n.toString().padStart(2, '0');
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
 };
 
-// Date utility to parse datetime-local string directly as UTC
-const fromDatetimeLocalToUTC = (localString) => {
-  if (!localString) return '';
-  // Append Z to treat the browser form input as a UTC time value
-  return new Date(localString + ':00.000Z').toISOString();
+const getUTCTimePart = (isoString) => {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  const pad = (n) => n.toString().padStart(2, '0');
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+};
+
+// Combine YYYY-MM-DD and HH:MM to UTC ISO string
+const combineDateTimeToUTC = (dateStr, timeStr) => {
+  if (!dateStr) return '';
+  const actualTime = timeStr || '00:00';
+  return new Date(`${dateStr}T${actualTime}:00.000Z`).toISOString();
 };
 
 export default function ItineraryEditClient({ itinerary, travelers: initialTravelers, events: initialEvents }) {
@@ -55,7 +63,9 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
   const [eventForm, setEventForm] = useState({
     type: 'flight',
     title: '',
+    start_date: '',
     start_time: '',
+    end_date: '',
     end_time: '',
     location_name: '',
     address: '',
@@ -74,6 +84,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
   });
   const [eventSaving, setEventSaving] = useState(false);
   const [eventError, setEventError] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
 
   // ------------------------------------
   // TRIP DETAILS HANDLERS
@@ -168,14 +179,15 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     setEventForm({
       type: 'flight',
       title: '',
+      start_date: '',
       start_time: '',
+      end_date: '',
       end_time: '',
       location_name: '',
       address: '',
       traveler_ids: [],
       details: {
         flight_number: '',
-        confirmation: '',
         train_number: '',
         coach: '',
         seats: '',
@@ -188,10 +200,51 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     setEventError('');
   };
 
+  const handleFlightLookup = async () => {
+    if (!eventForm.details.flight_number) {
+      setEventError("Please enter a flight number first (e.g., UA924).");
+      return;
+    }
+    
+    setLookupLoading(true);
+    setEventError('');
+    
+    try {
+      const res = await lookupFlightAction(eventForm.details.flight_number, eventForm.start_date);
+      if (res.success) {
+        const startD = getUTCDatePart(res.departureTime);
+        const startT = getUTCTimePart(res.departureTime);
+        const endD = getUTCDatePart(res.arrivalTime);
+        const endT = getUTCTimePart(res.arrivalTime);
+        
+        setEventForm(prev => ({
+          ...prev,
+          title: `Flight ${res.flightNumber}: ${res.departureIata} to ${res.arrivalIata}`,
+          start_date: startD,
+          start_time: startT,
+          end_date: endD,
+          end_time: endT,
+          location_name: `${res.departureAirport}${res.departureTerminal ? ` Terminal ${res.departureTerminal}` : ''}`,
+          address: `${res.arrivalAirport}${res.arrivalTerminal ? ` Terminal ${res.arrivalTerminal}` : ''}`,
+          details: {
+            ...prev.details,
+            flight_number: res.flightNumber
+          }
+        }));
+      } else {
+        setEventError(res.error || "Could not find flight details. Please fill in manually.");
+      }
+    } catch (err) {
+      setEventError("Flight lookup failed. Please enter details manually.");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
   const handleEventSubmit = async (e) => {
     e.preventDefault();
-    if (!eventForm.title || !eventForm.start_time) {
-      setEventError('Event Title and Start Time are required.');
+    if (!eventForm.title || !eventForm.start_date) {
+      setEventError('Event Title and Start Date are required.');
       return;
     }
 
@@ -203,8 +256,8 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
       itinerary_id: itinerary.id,
       type: eventForm.type,
       title: eventForm.title,
-      start_time: fromDatetimeLocalToUTC(eventForm.start_time),
-      end_time: eventForm.end_time ? fromDatetimeLocalToUTC(eventForm.end_time) : null,
+      start_time: combineDateTimeToUTC(eventForm.start_date, eventForm.start_time),
+      end_time: eventForm.end_date ? combineDateTimeToUTC(eventForm.end_date, eventForm.end_time) : null,
       location_name: eventForm.location_name,
       address: eventForm.address,
       traveler_ids: eventForm.traveler_ids,
@@ -239,14 +292,15 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     setEventForm({
       type: event.type,
       title: event.title,
-      start_time: toDatetimeLocalUTC(event.start_time),
-      end_time: event.end_time ? toDatetimeLocalUTC(event.end_time) : '',
+      start_date: getUTCDatePart(event.start_time),
+      start_time: getUTCTimePart(event.start_time),
+      end_date: event.end_time ? getUTCDatePart(event.end_time) : '',
+      end_time: event.end_time ? getUTCTimePart(event.end_time) : '',
       location_name: event.location_name || '',
       address: event.address || '',
       traveler_ids: event.traveler_ids || [],
       details: {
         flight_number: event.details?.flight_number || '',
-        confirmation: event.details?.confirmation || '',
         train_number: event.details?.train_number || '',
         coach: event.details?.coach || '',
         seats: event.details?.seats || '',
@@ -651,20 +705,43 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">Start Time (UTC) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <label className="form-label">Start Date (UTC) <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <input 
-                      type="datetime-local" 
-                      name="start_time" 
+                      type="date" 
+                      name="start_date" 
                       className="form-input" 
-                      value={eventForm.start_time}
+                      value={eventForm.start_date}
                       onChange={handleEventFormChange}
                       required
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">End Time (UTC)</label>
+                    <label className="form-label">Start Time (24h UTC)</label>
                     <input 
-                      type="datetime-local" 
+                      type="time" 
+                      name="start_time" 
+                      className="form-input" 
+                      value={eventForm.start_time}
+                      onChange={handleEventFormChange}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label">End Date (UTC)</label>
+                    <input 
+                      type="date" 
+                      name="end_date" 
+                      className="form-input" 
+                      value={eventForm.end_date}
+                      onChange={handleEventFormChange}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">End Time (24h UTC)</label>
+                    <input 
+                      type="time" 
                       name="end_time" 
                       className="form-input" 
                       value={eventForm.end_time}
@@ -714,29 +791,27 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                   </h4>
 
                   {eventForm.type === 'flight' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'flex-end' }}>
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Flight Number</label>
                         <input 
                           type="text" 
                           name="details.flight_number" 
                           className="form-input" 
-                          placeholder="e.g., UA 924" 
+                          placeholder="e.g., UA924" 
                           value={eventForm.details.flight_number}
                           onChange={handleEventFormChange}
                         />
                       </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Confirmation Code</label>
-                        <input 
-                          type="text" 
-                          name="details.confirmation" 
-                          className="form-input" 
-                          placeholder="e.g., BXT49Y" 
-                          value={eventForm.details.confirmation}
-                          onChange={handleEventFormChange}
-                        />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={handleFlightLookup}
+                        className="btn btn-secondary"
+                        style={{ height: '42px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        disabled={lookupLoading}
+                      >
+                        {lookupLoading ? 'Searching...' : '🔍 Search Flight Info'}
+                      </button>
                     </div>
                   )}
 

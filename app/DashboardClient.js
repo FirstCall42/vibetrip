@@ -7,11 +7,19 @@ import { createItineraryAction, logoutAction } from './actions';
 export default function DashboardClient({ initialItineraries, user, isCloud }) {
   const [itineraries, setItineraries] = useState(initialItineraries);
   const [showForm, setShowForm] = useState(false);
+  
+  // Dynamic helper for today's YYYY-MM-DD
+  const getTodayDateString = () => {
+    const d = new Date();
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  };
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    start_date: '',
-    end_date: ''
+    start_date: getTodayDateString(),
+    end_date: getTodayDateString()
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,13 +38,8 @@ export default function DashboardClient({ initialItineraries, user, isCloud }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.start_date || !formData.end_date) {
-      setError('Please fill in all required fields (Title, Start Date, End Date).');
-      return;
-    }
-
-    if (new Date(formData.end_date) < new Date(formData.start_date)) {
-      setError('End date must be the same or later than the start date.');
+    if (!formData.title) {
+      setError('Please fill in the Trip Title.');
       return;
     }
 
@@ -48,7 +51,12 @@ export default function DashboardClient({ initialItineraries, user, isCloud }) {
       if (result.success) {
         setItineraries(prev => [result.itinerary, ...prev]);
         setShowForm(false);
-        setFormData({ title: '', description: '', start_date: '', end_date: '' });
+        setFormData({ 
+          title: '', 
+          description: '', 
+          start_date: getTodayDateString(), 
+          end_date: getTodayDateString() 
+        });
       } else {
         setError(result.error || 'Failed to create itinerary.');
       }
@@ -181,31 +189,6 @@ export default function DashboardClient({ initialItineraries, user, isCloud }) {
                   onChange={handleInputChange}
                   style={{ resize: 'vertical' }}
                 />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <label className="form-label">Start Date <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <input 
-                    type="date" 
-                    name="start_date" 
-                    className="form-input" 
-                    value={formData.start_date} 
-                    onChange={handleInputChange} 
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">End Date <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <input 
-                    type="date" 
-                    name="end_date" 
-                    className="form-input" 
-                    value={formData.end_date} 
-                    onChange={handleInputChange} 
-                    required
-                  />
-                </div>
               </div>
 
               {error && <p style={{ color: 'var(--danger)', fontSize: '0.9rem', marginBottom: '16px' }}>{error}</p>}

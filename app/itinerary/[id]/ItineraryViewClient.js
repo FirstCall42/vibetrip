@@ -289,12 +289,21 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                       {event.type === 'flight' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                           <div><strong>Flight No:</strong> {event.details.flight_number || 'N/A'}</div>
-                          <div><strong>Confirmation:</strong> {event.details.confirmation || 'N/A'}</div>
                           {event.end_time && <div><strong>Arrival Time:</strong> {new Date(event.end_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} (UTC)</div>}
                           {event.details.notes && <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {event.details.notes}</div>}
-                          <div style={{ gridColumn: '1 / -1', fontSize: '0.8rem', color: 'var(--accent-cyan)', fontStyle: 'italic', borderTop: '1px dashed var(--border-color)', paddingTop: '8px', marginTop: '4px' }}>
-                            ✈️ Real-time Flight Status check integration planned for Phase 2.
-                          </div>
+                          {event.details.flight_number && (
+                            <div style={{ gridColumn: '1 / -1', borderTop: '1px dashed var(--border-color)', paddingTop: '12px', marginTop: '4px' }}>
+                              <a 
+                                href={`https://flightaware.com/live/flight/${event.details.flight_number.replace(/\s+/g, '')}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="btn btn-secondary btn-sm"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--accent-cyan)', borderColor: 'rgba(6, 182, 212, 0.3)' }}
+                              >
+                                ✈️ Track Live on FlightAware
+                              </a>
+                            </div>
+                          )}
                         </div>
                       )}
 
