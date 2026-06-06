@@ -460,28 +460,30 @@ export async function lookupFlightAction(flightNumber, dateStr) {
   const apiKey = process.env.FLIGHT_API_KEY;
   if (apiKey) {
     try {
-      const res = await fetch(`https://api.flightapi.io/flightschedule/${apiKey}?flightdate=${date}&flightIata=${cleanNum}`);
+      // Note: Aviationstack free plan uses http protocol
+      const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${cleanNum}`;
+      const res = await fetch(url);
       if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const flight = data[0];
+        const result = await res.json();
+        if (result && Array.isArray(result.data) && result.data.length > 0) {
+          const flight = result.data.find(f => f.flight_date === date) || result.data[0];
           return {
             success: true,
             flightNumber: cleanNum,
-            carrier: flight.airline?.name || "Unknown Carrier",
-            departureAirport: `${flight.departure?.airport?.name || 'Departure'} (${flight.departure?.iata || '???'})`,
+            carrier: flight.airline?.name || "Airline",
+            departureAirport: `${flight.departure?.airport || 'Departure'} (${flight.departure?.iata || '???'})`,
             departureIata: flight.departure?.iata || '',
-            arrivalAirport: `${flight.arrival?.airport?.name || 'Arrival'} (${flight.arrival?.iata || '???'})`,
+            arrivalAirport: `${flight.arrival?.airport || 'Arrival'} (${flight.arrival?.iata || '???'})`,
             arrivalIata: flight.arrival?.iata || '',
-            departureTime: flight.departure?.utcTime || `${date}T12:00:00.000Z`,
-            arrivalTime: flight.arrival?.utcTime || `${date}T18:00:00.000Z`,
+            departureTime: flight.departure?.scheduled || `${date}T12:00:00.000Z`,
+            arrivalTime: flight.arrival?.scheduled || `${date}T18:00:00.000Z`,
             departureTerminal: flight.departure?.terminal || '',
             arrivalTerminal: flight.arrival?.terminal || ''
           };
         }
       }
     } catch (err) {
-      console.warn("Flight API request failed, falling back to mock details:", err);
+      console.warn("Aviationstack API request failed, falling back to mock details:", err);
     }
   }
 
