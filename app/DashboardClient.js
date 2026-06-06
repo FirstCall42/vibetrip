@@ -293,15 +293,7 @@ export default function DashboardClient({ initialItineraries, user, isCloud }) {
       {/* Footer Info */}
       <footer className="glass" style={{ borderLeft: 'none', borderRight: 'none', borderBottom: 'none', borderRadius: 0, padding: '24px 0', marginTop: '60px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
         <div className="container">
-          <p style={{ marginBottom: '8px' }}>
-            VibeTrip is currently running in **Local File Storage** mode (saving to `/data/db.json`).
-          </p>
-          <p style={{ marginBottom: '8px', fontSize: '0.95rem' }}>
-            Supabase health check: <Link href="/health" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>/health</Link>
-          </p>
-          <p>
-            Deploy this codebase to Vercel and link a Supabase PostgreSQL instance to enable cloud sync.
-          </p>
+          <p>© {new Date().getFullYear()} VibeTrip. Plan, coordinate, and enjoy travel together.</p>
         </div>
       </footer>
     </div>
