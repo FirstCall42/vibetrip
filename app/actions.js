@@ -458,200 +458,88 @@ export async function lookupFlightAction(flightNumber, dateStr) {
   const date = dateStr || new Date().toISOString().split('T')[0];
   
   const apiKey = process.env.FLIGHT_API_KEY;
+  
+  // ─── REAL API PATH ───
   if (apiKey) {
+    console.log(`[FlightLookup] API key found (${apiKey.substring(0, 4)}...). Querying Aviationstack for ${cleanNum} on ${date}`);
+    
     try {
-      // Aviationstack free plan uses http (https requires paid plan)
+      // Aviationstack free plan ONLY supports HTTP (not HTTPS)
       const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${cleanNum}&flight_date=${date}`;
-      console.log(`[FlightLookup] Requesting Aviationstack: flight_iata=${cleanNum}, flight_date=${date}`);
       console.log(`[FlightLookup] URL: ${url.replace(apiKey, 'REDACTED')}`);
       
       const res = await fetch(url);
-      console.log(`[FlightLookup] Response status: ${res.status} ${res.statusText}`);
+      console.log(`[FlightLookup] HTTP response: ${res.status} ${res.statusText}`);
       
-      if (res.ok) {
-        const result = await res.json();
-        console.log(`[FlightLookup] Response body keys: ${Object.keys(result).join(', ')}`);
-        
-        if (result.error) {
-          console.error(`[FlightLookup] API error:`, result.error);
-        }
-        
-        if (result && Array.isArray(result.data) && result.data.length > 0) {
-          console.log(`[FlightLookup] Found ${result.data.length} flight(s) for ${cleanNum}`);
-          const flight = result.data.find(f => f.flight_date === date) || result.data[0];
-          
-          console.log(`[FlightLookup] Selected flight:`, JSON.stringify({
-            flight_date: flight.flight_date,
-            airline: flight.airline?.name,
-            departure_airport: flight.departure?.airport,
-            departure_iata: flight.departure?.iata,
-            departure_scheduled: flight.departure?.scheduled,
-            departure_terminal: flight.departure?.terminal,
-            arrival_airport: flight.arrival?.airport,
-            arrival_iata: flight.arrival?.iata,
-            arrival_scheduled: flight.arrival?.scheduled,
-            arrival_terminal: flight.arrival?.terminal,
-            flight_status: flight.flight_status
-          }, null, 2));
-          
-          return {
-            success: true,
-            flightNumber: cleanNum,
-            carrier: flight.airline?.name || "Airline",
-            departureAirport: `${flight.departure?.airport || 'Departure'} (${flight.departure?.iata || '???'})`,
-            departureIata: flight.departure?.iata || '',
-            arrivalAirport: `${flight.arrival?.airport || 'Arrival'} (${flight.arrival?.iata || '???'})`,
-            arrivalIata: flight.arrival?.iata || '',
-            departureTime: flight.departure?.scheduled || `${date}T12:00:00.000Z`,
-            arrivalTime: flight.arrival?.scheduled || `${date}T18:00:00.000Z`,
-            departureTerminal: flight.departure?.terminal || '',
-            arrivalTerminal: flight.arrival?.terminal || ''
-          };
-        } else {
-          console.log(`[FlightLookup] No flight data returned for ${cleanNum} on ${date}. data array length: ${result.data?.length ?? 'undefined'}`);
-        }
-      } else {
-        const body = await res.text();
-        console.error(`[FlightLookup] HTTP error ${res.status}: ${body.substring(0, 500)}`);
+      const body = await res.text();
+      console.log(`[FlightLookup] Raw response body (first 1000 chars): ${body.substring(0, 1000)}`);
+      
+      let result;
+      try {
+        result = JSON.parse(body);
+      } catch (parseErr) {
+        console.error(`[FlightLookup] Failed to parse response as JSON`);
+        return { success: false, error: `API returned non-JSON response (HTTP ${res.status}). Check server logs for details.`, _debug: { status: res.status, bodyPreview: body.substring(0, 200) } };
       }
+      
+      // Aviationstack returns errors inside the JSON body even with 200 status
+      if (result.error) {
+        console.error(`[FlightLookup] API error response:`, JSON.stringify(result.error));
+        return { success: false, error: `Aviationstack API error: ${result.error.message || result.error.type || JSON.stringify(result.error)}`, _debug: { apiError: result.error } };
+      }
+      
+      if (!result.data || !Array.isArray(result.data)) {
+        console.error(`[FlightLookup] Unexpected response shape. Keys: ${Object.keys(result).join(', ')}`);
+        return { success: false, error: `Unexpected API response format. Keys: ${Object.keys(result).join(', ')}`, _debug: { keys: Object.keys(result) } };
+      }
+      
+      if (result.data.length === 0) {
+        console.log(`[FlightLookup] No flights found for ${cleanNum} on ${date}`);
+        return { success: false, error: `No flight data found for ${cleanNum} on ${date}. Try a different date or check the flight number.` };
+      }
+      
+      console.log(`[FlightLookup] Found ${result.data.length} flight(s) for ${cleanNum}`);
+      const flight = result.data.find(f => f.flight_date === date) || result.data[0];
+      
+      console.log(`[FlightLookup] Selected flight:`, JSON.stringify({
+        flight_date: flight.flight_date,
+        airline: flight.airline?.name,
+        dep_airport: flight.departure?.airport,
+        dep_iata: flight.departure?.iata,
+        dep_scheduled: flight.departure?.scheduled,
+        dep_terminal: flight.departure?.terminal,
+        arr_airport: flight.arrival?.airport,
+        arr_iata: flight.arrival?.iata,
+        arr_scheduled: flight.arrival?.scheduled,
+        arr_terminal: flight.arrival?.terminal,
+        flight_status: flight.flight_status
+      }, null, 2));
+      
+      return {
+        success: true,
+        flightNumber: cleanNum,
+        carrier: flight.airline?.name || "Airline",
+        departureAirport: `${flight.departure?.airport || 'Departure'} (${flight.departure?.iata || '???'})`,
+        departureIata: flight.departure?.iata || '',
+        arrivalAirport: `${flight.arrival?.airport || 'Arrival'} (${flight.arrival?.iata || '???'})`,
+        arrivalIata: flight.arrival?.iata || '',
+        departureTime: flight.departure?.scheduled || `${date}T12:00:00.000Z`,
+        arrivalTime: flight.arrival?.scheduled || `${date}T18:00:00.000Z`,
+        departureTerminal: flight.departure?.terminal || '',
+        arrivalTerminal: flight.arrival?.terminal || ''
+      };
+      
     } catch (err) {
-      console.error("[FlightLookup] Aviationstack API request failed, falling back to mock details:", err);
+      console.error("[FlightLookup] Fetch failed entirely:", err.message, err.cause || '');
+      return { success: false, error: `Flight API request failed: ${err.message}. This may be because Aviationstack free plan requires HTTP (not HTTPS). Check server logs.`, _debug: { errorMessage: err.message } };
     }
-  } else {
-    console.log("[FlightLookup] No FLIGHT_API_KEY configured, using mock data");
   }
-
-  const carrierCode = cleanNum.slice(0, 2);
-  const numberPart = cleanNum.slice(2);
   
-  let carrier = "Airline";
-  let departureAirport = "Boston Logan Intl (BOS)";
-  let departureIata = "BOS";
-  let arrivalAirport = "London Heathrow (LHR)";
-  let arrivalIata = "LHR";
-  let durationHours = 7;
-  let depHour = 18;
-  let depMin = 30;
-  let depTerminal = "E";
-  let arrTerminal = "2";
-
-  if (carrierCode === "UA") {
-    carrier = "United Airlines";
-    if (numberPart === "924") {
-      departureAirport = "Boston Logan Intl (BOS)";
-      departureIata = "BOS";
-      arrivalAirport = "London Heathrow (LHR)";
-      arrivalIata = "LHR";
-      durationHours = 6.5;
-      depHour = 19;
-      depMin = 30;
-    } else {
-      departureAirport = "San Francisco Intl (SFO)";
-      departureIata = "SFO";
-      arrivalAirport = "Tokyo Narita (NRT)";
-      arrivalIata = "NRT";
-      durationHours = 11;
-      depHour = 11;
-      depMin = 45;
-      depTerminal = "I";
-      arrTerminal = "1";
-    }
-  } else if (carrierCode === "AA") {
-    carrier = "American Airlines";
-    if (numberPart === "86") {
-      departureAirport = "Chicago O'Hare (ORD)";
-      departureIata = "ORD";
-      arrivalAirport = "London Heathrow (LHR)";
-      arrivalIata = "LHR";
-      durationHours = 7.75;
-      depHour = 18;
-      depMin = 15;
-      depTerminal = "3";
-    } else {
-      departureAirport = "New York JFK (JFK)";
-      departureIata = "JFK";
-      arrivalAirport = "Paris Charles de Gaulle (CDG)";
-      arrivalIata = "CDG";
-      durationHours = 7.5;
-      depHour = 17;
-      depMin = 30;
-      depTerminal = "8";
-      arrTerminal = "2B";
-    }
-  } else if (carrierCode === "BA") {
-    carrier = "British Airways";
-    departureAirport = "London Heathrow (LHR)";
-    departureIata = "LHR";
-    arrivalAirport = "Rome Fiumicino (FCO)";
-    arrivalIata = "FCO";
-    durationHours = 2.5;
-    depHour = 8;
-    depMin = 10;
-    depTerminal = "5";
-    arrTerminal = "3";
-  } else if (carrierCode === "LH") {
-    carrier = "Lufthansa";
-    departureAirport = "Frankfurt Airport (FRA)";
-    departureIata = "FRA";
-    arrivalAirport = "Boston Logan Intl (BOS)";
-    arrivalIata = "BOS";
-    durationHours = 8;
-    depHour = 13;
-    depMin = 0;
-    depTerminal = "1";
-    arrTerminal = "E";
-  } else if (carrierCode === "DL") {
-    carrier = "Delta Air Lines";
-    departureAirport = "Atlanta Hartsfield-Jackson (ATL)";
-    departureIata = "ATL";
-    arrivalAirport = "Amsterdam Schiphol (AMS)";
-    arrivalIata = "AMS";
-    durationHours = 8.5;
-    depHour = 17;
-    depMin = 45;
-    depTerminal = "I";
-    arrTerminal = "3";
-  } else {
-    const num = parseInt(numberPart, 10) || 100;
-    if (num % 2 === 0) {
-      carrier = "Global Airways";
-      departureAirport = "Paris Charles de Gaulle (CDG)";
-      departureIata = "CDG";
-      arrivalAirport = "Rome Fiumicino (FCO)";
-      arrivalIata = "FCO";
-      durationHours = 2;
-      depHour = 14;
-      depMin = 15;
-      depTerminal = "2E";
-      arrTerminal = "1";
-    } else {
-      carrier = "Star Express";
-      departureAirport = "New York JFK (JFK)";
-      departureIata = "JFK";
-      arrivalAirport = "London Heathrow (LHR)";
-      arrivalIata = "LHR";
-      durationHours = 7.25;
-      depHour = 20;
-      depMin = 0;
-      depTerminal = "4";
-      arrTerminal = "4";
-    }
-  }
-
-  const depTime = new Date(`${date}T${String(depHour).padStart(2, '0')}:${String(depMin).padStart(2, '0')}:00.000Z`);
-  const arrTime = new Date(depTime.getTime() + durationHours * 60 * 60 * 1000);
-
-  return {
-    success: true,
-    flightNumber: cleanNum,
-    carrier,
-    departureAirport,
-    departureIata,
-    arrivalAirport,
-    arrivalIata,
-    departureTime: depTime.toISOString(),
-    arrivalTime: arrTime.toISOString(),
-    departureTerminal: depTerminal,
-    arrivalTerminal: arrTerminal
+  // ─── NO API KEY — return error, don't silently use mock data ───
+  console.log("[FlightLookup] No FLIGHT_API_KEY environment variable found");
+  return { 
+    success: false, 
+    error: "No FLIGHT_API_KEY configured. Add your Aviationstack API key as the FLIGHT_API_KEY environment variable in Vercel (Settings → Environment Variables) and redeploy." 
   };
 }
+
