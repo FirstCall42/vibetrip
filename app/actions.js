@@ -385,7 +385,9 @@ export async function createEventAction(eventData) {
       location_name: eventData.location_name || '',
       address: eventData.address || '',
       details: eventData.details || {},
-      traveler_ids: eventData.traveler_ids || []
+      traveler_ids: eventData.traveler_ids || [],
+      start_timezone: eventData.start_timezone || 'America/New_York',
+      end_timezone: eventData.end_timezone || 'America/New_York'
     });
 
     await syncItineraryDates(eventData.itinerary_id);

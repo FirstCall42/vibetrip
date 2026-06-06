@@ -2,12 +2,36 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { formatLocalTime } from '@/lib/timezoneUtils';
+import { formatLocalTime, getDualTimezoneDisplay } from '@/lib/timezoneUtils';
 
 export default function ItineraryViewClient({ itinerary, travelers, events, isOwner }) {
   const [selectedTravelerId, setSelectedTravelerId] = useState('all');
   const [filteredEvents, setFilteredEvents] = useState(events);
   const [countdownText, setCountdownText] = useState('');
+  const [userTz, setUserTz] = useState('America/New_York');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    }
+  }, []);
+
+  const renderDualTime = (isoString, eventTimezone) => {
+    if (!isoString) return null;
+    const { primary, secondary } = getDualTimezoneDisplay(isoString, eventTimezone, userTz);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', textAlign: 'right' }}>
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+          {primary}
+        </span>
+        {secondary && (
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', opacity: 0.7, fontWeight: 400 }}>
+            {secondary}
+          </span>
+        )}
+      </div>
+    );
+  };
 
   // Update filtered events when selection changes
   useEffect(() => {
@@ -276,9 +300,7 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                         {getEventIcon(event.type)}
                         {event.type}
                       </span>
-                      <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                        {formatEventTime(event.start_time, event.timezone || 'America/New_York')}
-                      </span>
+                      {renderDualTime(event.start_time, event.start_timezone || event.timezone || 'America/New_York')}
                     </div>
 
                     <h3 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '6px' }}>
@@ -326,11 +348,26 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                     )}
 
                     {/* Timezone Info */}
-                    {event.timezone && (
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        🕐 Times shown in <strong>{event.timezone.replace('_', ' ')}</strong> timezone
-                      </p>
-                    )}
+                    {(() => {
+                      const startTz = event.start_timezone || event.timezone || 'America/New_York';
+                      const endTz = event.end_timezone || event.timezone || 'America/New_York';
+                      const cleanStartTz = startTz.split('/').pop().replace(/_/g, ' ');
+                      const cleanEndTz = endTz.split('/').pop().replace(/_/g, ' ');
+                      
+                      if (!event.end_time || startTz === endTz) {
+                        return (
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            🕐 Times shown in <strong>{cleanStartTz}</strong> timezone
+                          </p>
+                        );
+                      } else {
+                        return (
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            🕐 Starts in <strong>{cleanStartTz}</strong> • Ends in <strong>{cleanEndTz}</strong>
+                          </p>
+                        );
+                      }
+                    })()}
 
                     {/* Details Block (Specific by Type) */}
                     <div style={{ 
@@ -344,7 +381,14 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                       {event.type === 'flight' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                           <div><strong>Flight No:</strong> {event.details.flight_number || 'N/A'}</div>
-                          {event.end_time && <div><strong>Arrival:</strong> {formatEventTime(event.end_time, event.timezone || 'America/New_York')}</div>}
+                           {event.end_time && (
+                            <div>
+                              <strong>Arrival:</strong> {formatEventTime(event.end_time, event.end_timezone || event.timezone || 'America/New_York')}{' '}
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                ({(event.end_timezone || event.timezone || 'America/New_York').split('/').pop().replace(/_/g, ' ')})
+                              </span>
+                            </div>
+                          )}
                           {event.details.notes && <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {event.details.notes}</div>}
                           {event.details.flight_number && (
                             <div style={{ gridColumn: '1 / -1', borderTop: '1px dashed var(--border-color)', paddingTop: '12px', marginTop: '4px' }}>
@@ -373,7 +417,14 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                       {event.type === 'hotel' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                           <div><strong>Phone:</strong> {event.details.phone || 'N/A'}</div>
-                          {event.end_time && <div><strong>Checkout:</strong> {formatEventTime(event.end_time, event.timezone || 'America/New_York').split(' ').slice(0, 3).join(' ')}</div>}
+                           {event.end_time && (
+                            <div>
+                              <strong>Checkout:</strong> {formatEventTime(event.end_time, event.end_timezone || event.timezone || 'America/New_York')}{' '}
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                ({(event.end_timezone || event.timezone || 'America/New_York').split('/').pop().replace(/_/g, ' ')})
+                              </span>
+                            </div>
+                          )}
                           {event.details.notes && <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {event.details.notes}</div>}
                         </div>
                       )}
