@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { formatLocalTime } from '../../../lib/timezoneUtils';
+import { formatLocalTime } from '@/lib/timezoneUtils';
 
 export default function ItineraryViewClient({ itinerary, travelers, events, isOwner }) {
   const [selectedTravelerId, setSelectedTravelerId] = useState('all');

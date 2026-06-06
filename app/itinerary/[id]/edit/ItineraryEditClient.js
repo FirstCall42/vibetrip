@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { localToUTC, utcToLocal } from '../../../lib/timezoneUtils';
+import { localToUTC, utcToLocal } from '@/lib/timezoneUtils';
 import { 
   updateItineraryAction, 
   deleteItineraryAction,
