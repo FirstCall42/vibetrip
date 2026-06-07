@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { localToUTC, utcToLocal, formatLocalTime } from '@/lib/timezoneUtils';
+import { localToTzString, utcToLocal, formatLocalTime } from '@/lib/timezoneUtils';
 import { 
   updateItineraryAction, 
   deleteItineraryAction,
@@ -15,19 +15,17 @@ import {
   lookupFlightAction
 } from '../../../actions';
 
-// Date utilities to extract UTC parts for inputs
-const getUTCDatePart = (isoString) => {
+// Date/Time utilities to extract local parts from ISO strings
+const getLocalDatePartFromISO = (isoString) => {
   if (!isoString) return '';
-  const d = new Date(isoString);
-  const pad = (n) => n.toString().padStart(2, '0');
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+  return isoString.split('T')[0];
 };
 
-const getUTCTimePart = (isoString) => {
+const getLocalTimePartFromISO = (isoString) => {
   if (!isoString) return '';
-  const d = new Date(isoString);
-  const pad = (n) => n.toString().padStart(2, '0');
-  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+  const timePart = isoString.split('T')[1];
+  if (!timePart) return '';
+  return timePart.substring(0, 5);
 };
 
 // Local time utilities with timezone support
@@ -43,11 +41,9 @@ const getLocalTimePart = (isoString, timezone) => {
   return local.timeStr;
 };
 
-// Combine YYYY-MM-DD and HH:MM to UTC ISO string, accounting for timezone
-const combineDateTimeToUTC = (dateStr, timeStr, timezone = 'America/New_York') => {
-  if (!dateStr) return '';
-  const actualTime = timeStr || '00:00';
-  return localToUTC(dateStr, actualTime, timezone);
+// Combine YYYY-MM-DD and HH:MM to ISO 8601 string with timezone offset
+const combineDateTimeToTzString = (dateStr, timeStr, timezone = 'America/New_York') => {
+  return localToTzString(dateStr, timeStr, timezone);
 };
 
 const renderTimezoneOptions = () => (
@@ -226,9 +222,9 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
           }
         }
 
-        // Auto-align end_timezone with start_timezone unless type is flight
+        // Auto-align end_timezone with start_timezone unless type is flight or train
         if (name === 'start_timezone') {
-          if (prev.type !== 'flight' || prev.start_timezone === prev.end_timezone) {
+          if ((prev.type !== 'flight' && prev.type !== 'train') || prev.start_timezone === prev.end_timezone) {
             updated.end_timezone = value;
           }
         }
@@ -289,10 +285,10 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     try {
       const res = await lookupFlightAction(eventForm.details.flight_number, eventForm.start_date);
       if (res.success) {
-        const startD = getUTCDatePart(res.departureTime);
-        const startT = getUTCTimePart(res.departureTime);
-        const endD = getUTCDatePart(res.arrivalTime);
-        const endT = getUTCTimePart(res.arrivalTime);
+        const startD = getLocalDatePartFromISO(res.departureTime);
+        const startT = getLocalTimePartFromISO(res.departureTime);
+        const endD = getLocalDatePartFromISO(res.arrivalTime);
+        const endT = getLocalTimePartFromISO(res.arrivalTime);
         
         setEventForm(prev => ({
           ...prev,
@@ -343,18 +339,18 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
     setEventSaving(true);
     setEventError('');
 
-    // Parse times timezone-safely into UTC strings
+    // Save dates with their offset directly to avoid UTC shift bugs
     const eventPayload = {
       itinerary_id: itinerary.id,
       type: eventForm.type,
       title: eventForm.title,
-      start_time: combineDateTimeToUTC(eventForm.start_date, eventForm.start_time, eventForm.start_timezone),
-      end_time: eventForm.end_date ? combineDateTimeToUTC(eventForm.end_date, eventForm.end_time, eventForm.end_timezone) : null,
+      start_time: combineDateTimeToTzString(eventForm.start_date, eventForm.start_time, eventForm.start_timezone),
+      end_time: eventForm.end_date ? combineDateTimeToTzString(eventForm.end_date, eventForm.end_time, eventForm.end_timezone) : null,
       location_name: eventForm.location_name,
       address: eventForm.address,
       maps_url: eventForm.maps_url,
       start_timezone: eventForm.start_timezone,
-      end_timezone: eventForm.end_timezone,
+      end_timezone: (eventForm.type === 'flight' || eventForm.type === 'train') ? eventForm.end_timezone : eventForm.start_timezone,
       traveler_ids: eventForm.traveler_ids,
       details: eventForm.details
     };
@@ -886,7 +882,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Date' : 'Start Date'} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <label className="form-label">{(eventForm.type === 'flight' || eventForm.type === 'train') ? 'Departure Date' : 'Start Date'} <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <input 
                       type="date" 
                       name="start_date" 
@@ -897,7 +893,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Time' : 'Start Time'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(24h)</span></label>
+                    <label className="form-label">{(eventForm.type === 'flight' || eventForm.type === 'train') ? 'Departure Time' : 'Start Time'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(24h)</span></label>
                     <input 
                       type="time" 
                       name="start_time" 
@@ -910,7 +906,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Date' : 'End Date'}</label>
+                    <label className="form-label">{(eventForm.type === 'flight' || eventForm.type === 'train') ? 'Arrival Date' : 'End Date'}</label>
                     <input 
                       type="date" 
                       name="end_date" 
@@ -921,7 +917,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Time' : 'End Time'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(24h)</span></label>
+                    <label className="form-label">{(eventForm.type === 'flight' || eventForm.type === 'train') ? 'Arrival Time' : 'End Time'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(24h)</span></label>
                     <input 
                       type="time" 
                       name="end_time" 
@@ -989,23 +985,23 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Location / Venue Name</label>
+                        <label className="form-label">{eventForm.type === 'train' ? 'Departure Station' : 'Location / Venue Name'}</label>
                         <input 
                           type="text" 
                           name="location_name" 
                           className="form-input" 
-                          placeholder="e.g. CitizenM Hotel or The Anchor Pub" 
+                          placeholder={eventForm.type === 'train' ? 'e.g. St Pancras International' : 'e.g. CitizenM Hotel or The Anchor Pub'} 
                           value={eventForm.location_name}
                           onChange={handleEventFormChange}
                         />
                       </div>
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Street Address <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(Optional fallback)</span></label>
+                        <label className="form-label">{eventForm.type === 'train' ? 'Arrival Station' : 'Street Address'}{eventForm.type !== 'train' && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}> (Optional fallback)</span>}</label>
                         <input 
                           type="text" 
                           name="address" 
                           className="form-input" 
-                          placeholder="e.g. 20 Lavington St, London" 
+                          placeholder={eventForm.type === 'train' ? 'e.g. Gare du Nord' : 'e.g. 20 Lavington St, London'} 
                           value={eventForm.address}
                           onChange={handleEventFormChange}
                         />
@@ -1014,9 +1010,9 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                   </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: eventForm.type === 'flight' ? '1fr 1fr' : '1fr', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: (eventForm.type === 'flight' || eventForm.type === 'train') ? '1fr 1fr' : '1fr', gap: '12px', marginBottom: '16px' }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Timezone' : 'Event Timezone'}</label>
+                    <label className="form-label">{(eventForm.type === 'flight' || eventForm.type === 'train') ? 'Departure Timezone' : 'Event Timezone'}</label>
                     <select 
                       name="start_timezone" 
                       className="form-input" 
@@ -1027,7 +1023,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                       {renderTimezoneOptions()}
                     </select>
                   </div>
-                  {eventForm.type === 'flight' && (
+                  {(eventForm.type === 'flight' || eventForm.type === 'train') && (
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label">Arrival Timezone</label>
                       <select 
@@ -1054,7 +1050,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                   color: 'var(--text-main)',
                   lineHeight: '1.4'
                 }}>
-                  <strong>📍 Times are entered in local event timezones</strong> (Departure: <span style={{ textDecoration: 'underline' }}>{eventForm.start_timezone}</span>{eventForm.type === 'flight' ? `, Arrival: ` : ''}{eventForm.type === 'flight' ? <span style={{ textDecoration: 'underline' }}>{eventForm.end_timezone}</span> : ''}). We convert to UTC for storage.
+                  <strong>📍 Times are entered in local event timezones</strong> (Departure: <span style={{ textDecoration: 'underline' }}>{eventForm.start_timezone}</span>{(eventForm.type === 'flight' || eventForm.type === 'train') ? `, Arrival: ` : ''}{(eventForm.type === 'flight' || eventForm.type === 'train') ? <span style={{ textDecoration: 'underline' }}>{eventForm.end_timezone}</span> : ''}).
                 </div>
 
                 {/* ------------------------------ */}

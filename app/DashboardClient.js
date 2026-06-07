@@ -69,9 +69,13 @@ export default function DashboardClient({ initialItineraries, user, isCloud }) {
 
   // Helper to format date strings nicely
   const formatDateRange = (start, end) => {
-    const s = new Date(start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-    const e = new Date(end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-    return `${s} – ${e}`;
+    if (!start || !end) return '';
+    const formatPart = (dStr) => {
+      const [year, month, day] = dStr.split('-');
+      const date = new Date(Number(year), Number(month) - 1, Number(day));
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+    return `${formatPart(start)} – ${formatPart(end)}`;
   };
 
   return (

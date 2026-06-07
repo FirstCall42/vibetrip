@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import * as db from '@/lib/db';
+import { utcToLocal } from '@/lib/timezoneUtils';
 
 const supabaseUrl = db.supabaseUrl;
 const supabaseAnonKey = db.supabaseAnonKey;
@@ -338,7 +339,8 @@ export async function syncItineraryDates(itineraryId) {
 
     for (const event of events) {
       if (event.start_time) {
-        const startDatePart = event.start_time.split('T')[0];
+        const startTz = event.start_timezone || event.timezone || 'America/New_York';
+        const startDatePart = utcToLocal(event.start_time, startTz).dateStr;
         if (!minDate || startDatePart < minDate) {
           minDate = startDatePart;
         }
@@ -347,7 +349,8 @@ export async function syncItineraryDates(itineraryId) {
         }
       }
       if (event.end_time) {
-        const endDatePart = event.end_time.split('T')[0];
+        const endTz = event.end_timezone || event.timezone || 'America/New_York';
+        const endDatePart = utcToLocal(event.end_time, endTz).dateStr;
         if (!minDate || endDatePart < minDate) {
           minDate = endDatePart;
         }
