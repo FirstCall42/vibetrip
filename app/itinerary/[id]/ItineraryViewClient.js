@@ -2,37 +2,99 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { formatLocalTime, getDualTimezoneDisplay } from '@/lib/timezoneUtils';
+import { formatLocalTime, getGmtOffsetDisplay } from '@/lib/timezoneUtils';
 
 export default function ItineraryViewClient({ itinerary, travelers, events, isOwner }) {
   const [selectedTravelerId, setSelectedTravelerId] = useState('all');
   const [countdownText, setCountdownText] = useState('');
-  const [userTz, setUserTz] = useState('America/New_York');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      requestAnimationFrame(() => {
-        setUserTz(tz);
-      });
-    }
-  }, []);
 
   const filteredEvents = selectedTravelerId === 'all'
     ? events
     : events.filter(e => e.traveler_ids && e.traveler_ids.includes(selectedTravelerId));
 
-  const renderDualTime = (isoString, eventTimezone) => {
-    if (!isoString) return null;
-    const { primary, secondary } = getDualTimezoneDisplay(isoString, eventTimezone, userTz);
+  const getRelativeTimeDisplay = (startTimeStr, endTimeStr) => {
+    if (!startTimeStr) return null;
+    const now = new Date();
+    const start = new Date(startTimeStr);
+    const end = endTimeStr ? new Date(endTimeStr) : null;
+
+    if (now > start) {
+      if (end && now < end) {
+        const diffMs = end - now;
+        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        if (diffHrs > 0) {
+          return { text: `Active now • ends in ${diffHrs}h ${diffMins}m`, status: 'active' };
+        }
+        return { text: `Active now • ends in ${diffMins}m`, status: 'active' };
+      }
+      return { text: 'Completed', status: 'completed' };
+    }
+
+    const diffMs = start - now;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHrs = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHrs / 24);
+
+    if (diffDays > 0) {
+      return { text: `Starts in ${diffDays}d ${diffHrs % 24}h`, status: 'future' };
+    } else if (diffHrs > 0) {
+      return { text: `Starts in ${diffHrs}h ${diffMins % 60}m`, status: 'future' };
+    } else if (diffMins > 0) {
+      return { text: `Starts in ${diffMins}m`, status: 'future' };
+    }
+    return { text: 'Starting now', status: 'active' };
+  };
+
+  const getStatusBadgeStyle = (status) => {
+    switch (status) {
+      case 'active':
+        return {
+          background: 'rgba(16, 185, 129, 0.12)',
+          color: 'var(--success)',
+          border: '1px solid rgba(16, 185, 129, 0.2)'
+        };
+      case 'completed':
+        return {
+          background: 'rgba(148, 163, 184, 0.08)',
+          color: 'var(--text-muted)',
+          border: '1px solid rgba(148, 163, 184, 0.15)'
+        };
+      case 'future':
+      default:
+        return {
+          background: 'rgba(99, 102, 241, 0.08)',
+          color: 'var(--primary)',
+          border: '1px solid rgba(99, 102, 241, 0.15)'
+        };
+    }
+  };
+
+  const renderTimeAndCountdown = (startTimeStr, endTimeStr, timezone) => {
+    if (!startTimeStr) return null;
+    const formattedStart = formatEventTime(startTimeStr, timezone);
+    const relativeTime = getRelativeTimeDisplay(startTimeStr, endTimeStr);
+
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', textAlign: 'right' }}>
-        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-          {primary}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', textAlign: 'right' }}>
+        <span style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-main)' }}>
+          {formattedStart}
         </span>
-        {secondary && (
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', opacity: 0.7, fontWeight: 400 }}>
-            {secondary}
+        {relativeTime && (
+          <span style={{
+            fontSize: '0.75rem',
+            padding: '2px 8px',
+            borderRadius: 'var(--radius-sm)',
+            fontWeight: 600,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            ...getStatusBadgeStyle(relativeTime.status)
+          }}>
+            {relativeTime.status === 'completed' && '✓ '}
+            {relativeTime.status === 'active' && '🟢 '}
+            {relativeTime.status === 'future' && '⏳ '}
+            {relativeTime.text}
           </span>
         )}
       </div>
@@ -297,7 +359,7 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                         {getEventIcon(event.type)}
                         {event.type}
                       </span>
-                      {renderDualTime(event.start_time, event.start_timezone || event.timezone || 'America/New_York')}
+                      {renderTimeAndCountdown(event.start_time, event.end_time, event.start_timezone || event.timezone || 'America/New_York')}
                     </div>
 
                     <h3 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '6px' }}>
@@ -346,21 +408,19 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
 
                     {/* Timezone Info */}
                     {(() => {
-                      const startTz = event.start_timezone || event.timezone || 'America/New_York';
-                      const endTz = event.end_timezone || event.timezone || 'America/New_York';
-                      const cleanStartTz = startTz.split('/').pop().replace(/_/g, ' ');
-                      const cleanEndTz = endTz.split('/').pop().replace(/_/g, ' ');
+                      const startOffset = getGmtOffsetDisplay(event.start_time);
+                      const endOffset = event.end_time ? getGmtOffsetDisplay(event.end_time) : null;
                       
-                      if (!event.end_time || startTz === endTz) {
+                      if (!event.end_time || startOffset === endOffset) {
                         return (
                           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            🕐 Times shown in <strong>{cleanStartTz}</strong> timezone
+                            🕐 Times are local to event ({startOffset || 'GMT'})
                           </p>
                         );
                       } else {
                         return (
                           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            🕐 Starts in <strong>{cleanStartTz}</strong> • Ends in <strong>{cleanEndTz}</strong>
+                            🕐 Starts in local {startOffset} • Ends in local {endOffset}
                           </p>
                         );
                       }
@@ -382,7 +442,7 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                             <div>
                               <strong>Arrival:</strong> {formatEventTime(event.end_time, event.end_timezone || event.timezone || 'America/New_York')}{' '}
                               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                ({(event.end_timezone || event.timezone || 'America/New_York').split('/').pop().replace(/_/g, ' ')})
+                                ({getGmtOffsetDisplay(event.end_time) || 'GMT'})
                               </span>
                             </div>
                           )}
@@ -418,7 +478,7 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                             <div>
                               <strong>Checkout:</strong> {formatEventTime(event.end_time, event.end_timezone || event.timezone || 'America/New_York')}{' '}
                               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                ({(event.end_timezone || event.timezone || 'America/New_York').split('/').pop().replace(/_/g, ' ')})
+                                ({getGmtOffsetDisplay(event.end_time) || 'GMT'})
                               </span>
                             </div>
                           )}
