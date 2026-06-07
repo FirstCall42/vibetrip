@@ -131,7 +131,9 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
       phone: '',
       reservation_name: '',
       headcount: '',
-      notes: ''
+      notes: '',
+      company: '',
+      confirmation: ''
     }
   });
   const [eventSaving, setEventSaving] = useState(false);
@@ -267,7 +269,9 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
         phone: '',
         reservation_name: '',
         headcount: '',
-        notes: ''
+        notes: '',
+        company: '',
+        confirmation: ''
       }
     });
     setEventError('');
@@ -401,7 +405,9 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
         phone: event.details?.phone || '',
         reservation_name: event.details?.reservation_name || '',
         headcount: event.details?.headcount || '',
-        notes: event.details?.notes || ''
+        notes: event.details?.notes || '',
+        company: event.details?.company || '',
+        confirmation: event.details?.confirmation || ''
       }
     });
     setEventError('');
@@ -750,6 +756,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                     if (event.type === 'train') badgeColor = 'var(--accent-cyan)';
                     if (event.type === 'hotel') badgeColor = 'var(--success)';
                     if (event.type === 'activity') badgeColor = 'var(--warning)';
+                    if (event.type === 'transit') badgeColor = 'var(--accent-cyan)';
 
                     return (
                       <div 
@@ -824,6 +831,7 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                     <option value="train">🚂 Train Ride</option>
                     <option value="hotel">🏨 Hotel Check-in / Lodging</option>
                     <option value="activity">🗓️ Planned Activity (Group Dinner, Tour, Concert)</option>
+                    <option value="transit">🚗 Transit / Taxi / Ride Share</option>
                   </select>
                 </div>
 
@@ -1100,6 +1108,33 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                           className="form-input" 
                           placeholder="22, 23" 
                           value={eventForm.details.seats}
+                          onChange={handleEventFormChange}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {eventForm.type === 'transit' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Service Provider / Company</label>
+                        <input 
+                          type="text" 
+                          name="details.company" 
+                          className="form-input" 
+                          placeholder="e.g. Uber, Yellow Cab, Local Bus" 
+                          value={eventForm.details.company || ''}
+                          onChange={handleEventFormChange}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Booking Reference / Code</label>
+                        <input 
+                          type="text" 
+                          name="details.confirmation" 
+                          className="form-input" 
+                          placeholder="e.g. UBER-12345" 
+                          value={eventForm.details.confirmation || ''}
                           onChange={handleEventFormChange}
                         />
                       </div>

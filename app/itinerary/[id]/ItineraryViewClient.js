@@ -165,6 +165,15 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
             <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
         );
+      case 'transit':
+        return (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="10" width="14" height="7" rx="1"></rect>
+            <circle cx="7" cy="17" r="2"></circle>
+            <circle cx="17" cy="17" r="2"></circle>
+            <path d="M19 10l-2-6H7L5 10"></path>
+          </svg>
+        );
       default:
         return (
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -337,6 +346,7 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
               if (event.type === 'train') typeColor = 'var(--accent-cyan)';
               if (event.type === 'hotel') typeColor = 'var(--success)';
               if (event.type === 'activity') typeColor = 'var(--warning)';
+              if (event.type === 'transit') typeColor = 'var(--accent-cyan)';
 
               return (
                 <div key={event.id} className="timeline-item animate-fade-in" style={{ animationDelay: `${idx * 0.05}s` }}>
@@ -490,6 +500,14 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                           <div><strong>Reservation:</strong> {event.details.reservation_name || 'N/A'}</div>
                           <div><strong>Headcount:</strong> {event.details.headcount || 'N/A'} guests</div>
+                          {event.details.notes && <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {event.details.notes}</div>}
+                        </div>
+                      )}
+
+                      {event.type === 'transit' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                          <div><strong>Service:</strong> {event.details.company || 'N/A'}</div>
+                          <div><strong>Confirmation:</strong> {event.details.confirmation || 'N/A'}</div>
                           {event.details.notes && <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {event.details.notes}</div>}
                         </div>
                       )}
