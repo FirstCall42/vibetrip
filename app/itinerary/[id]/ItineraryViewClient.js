@@ -6,15 +6,21 @@ import { formatLocalTime, getDualTimezoneDisplay } from '@/lib/timezoneUtils';
 
 export default function ItineraryViewClient({ itinerary, travelers, events, isOwner }) {
   const [selectedTravelerId, setSelectedTravelerId] = useState('all');
-  const [filteredEvents, setFilteredEvents] = useState(events);
   const [countdownText, setCountdownText] = useState('');
   const [userTz, setUserTz] = useState('America/New_York');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      requestAnimationFrame(() => {
+        setUserTz(tz);
+      });
     }
   }, []);
+
+  const filteredEvents = selectedTravelerId === 'all'
+    ? events
+    : events.filter(e => e.traveler_ids && e.traveler_ids.includes(selectedTravelerId));
 
   const renderDualTime = (isoString, eventTimezone) => {
     if (!isoString) return null;
@@ -32,15 +38,6 @@ export default function ItineraryViewClient({ itinerary, travelers, events, isOw
       </div>
     );
   };
-
-  // Update filtered events when selection changes
-  useEffect(() => {
-    if (selectedTravelerId === 'all') {
-      setFilteredEvents(events);
-    } else {
-      setFilteredEvents(events.filter(e => e.traveler_ids && e.traveler_ids.includes(selectedTravelerId)));
-    }
-  }, [selectedTravelerId, events]);
 
   // Next event countdown logic
   useEffect(() => {

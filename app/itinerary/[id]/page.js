@@ -30,7 +30,7 @@ export default async function ItineraryPage({ params }) {
           <span style={{ fontSize: '3rem', marginBottom: '16px', display: 'block' }}>🔍</span>
           <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Itinerary Not Found</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.95rem' }}>
-            We couldn't find the itinerary you are looking for. It may have been deleted, or the link is incorrect.
+            {"We couldn't find the itinerary you are looking for. It may have been deleted, or the link is incorrect."}
           </p>
           <Link href="/" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
             Go Back to Dashboard

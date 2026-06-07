@@ -932,45 +932,87 @@ export default function ItineraryEditClient({ itinerary, travelers: initialTrave
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Departure Airport' : 'Location / Terminal'}</label>
-                    <input 
-                      type="text" 
-                      name="location_name" 
-                      className="form-input" 
-                      placeholder={eventForm.type === 'flight' ? 'Auto-filled after search' : 'e.g. Logan Airport Terminal E'} 
-                      value={eventForm.location_name}
-                      onChange={handleEventFormChange}
-                    />
+                {eventForm.type === 'flight' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-group">
+                      <label className="form-label">Departure Airport</label>
+                      <input 
+                        type="text" 
+                        name="location_name" 
+                        className="form-input" 
+                        placeholder="Auto-filled after search" 
+                        value={eventForm.location_name}
+                        onChange={handleEventFormChange}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Arrival Airport</label>
+                      <input 
+                        type="text" 
+                        name="address" 
+                        className="form-input" 
+                        placeholder="Auto-filled after search" 
+                        value={eventForm.address}
+                        onChange={handleEventFormChange}
+                      />
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">{eventForm.type === 'flight' ? 'Arrival Airport' : 'Street Address'}</label>
-                    <input 
-                      type="text" 
-                      name="address" 
-                      className="form-input" 
-                      placeholder={eventForm.type === 'flight' ? 'Auto-filled after search' : 'e.g. London, SE1 9EF, UK'} 
-                      value={eventForm.address}
-                      onChange={handleEventFormChange}
-                    />
-                  </div>
-                </div>
+                ) : (
+                  <div style={{
+                    background: 'rgba(6, 182, 212, 0.03)',
+                    border: '1px solid rgba(6, 182, 212, 0.15)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '16px',
+                    marginBottom: '20px'
+                  }}>
+                    <h4 style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', marginBottom: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      📍 Location Details
+                    </h4>
+                    
+                    <div className="form-group">
+                      <label className="form-label" style={{ color: 'var(--text-main)', fontWeight: 600 }}>
+                        Google Maps Link <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', fontWeight: 500 }}>(Recommended)</span>
+                      </label>
+                      <input 
+                        type="url" 
+                        name="maps_url" 
+                        className="form-input" 
+                        placeholder="e.g. https://www.google.com/maps/place/..." 
+                        value={eventForm.maps_url}
+                        onChange={handleEventFormChange}
+                        style={{ borderColor: 'rgba(6, 182, 212, 0.3)' }}
+                      />
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', marginBottom: 0 }}>
+                        Paste the Google Maps share link directly from your browser. This provides the most precise navigation link for travelers.
+                      </p>
+                    </div>
 
-                <div className="form-group">
-                  <label className="form-label">Google Maps Link <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(optional)</span></label>
-                  <input 
-                    type="url" 
-                    name="maps_url" 
-                    className="form-input" 
-                    placeholder="e.g. https://www.google.com/maps/place/Hotel+Name/@lat,lng,15z" 
-                    value={eventForm.maps_url}
-                    onChange={handleEventFormChange}
-                  />
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Paste the Google Maps URL directly from your browser for a precise location link.
-                  </p>
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Location / Venue Name</label>
+                        <input 
+                          type="text" 
+                          name="location_name" 
+                          className="form-input" 
+                          placeholder="e.g. CitizenM Hotel or The Anchor Pub" 
+                          value={eventForm.location_name}
+                          onChange={handleEventFormChange}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Street Address <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(Optional fallback)</span></label>
+                        <input 
+                          type="text" 
+                          name="address" 
+                          className="form-input" 
+                          placeholder="e.g. 20 Lavington St, London" 
+                          value={eventForm.address}
+                          onChange={handleEventFormChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: eventForm.type === 'flight' ? '1fr 1fr' : '1fr', gap: '12px', marginBottom: '16px' }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
